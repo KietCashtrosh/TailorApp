@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center py-5" style="background: linear-gradient(135deg,#1e1b4b 0%,#4f46e5 100%);">
+  <div class="card shadow-lg border-0" style="width:100%;max-width:500px;border-radius:16px;">
+    <div class="card-body p-4 p-md-5">
+      <div class="text-center mb-4">
+        <span style="font-size:2.5rem;">✂️</span>
+        <h3 class="fw-bold mt-2 mb-0">Create Account</h3>
+        <p class="text-muted small">Join TailorApp today</p>
+      </div>
+      <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">I am a</label>
+          <div class="d-flex gap-3">
+            <div class="form-check flex-fill border rounded-3 p-3" id="roleCustomer" style="cursor:pointer;">
+              <input class="form-check-input" type="radio" name="role" value="customer" id="roleC" checked>
+              <label class="form-check-label w-100" for="roleC" style="cursor:pointer;">
+                <i class="bi bi-person me-1"></i><strong>Customer</strong>
+                <div class="text-muted small">I want clothes stitched</div>
+              </label>
+            </div>
+            <div class="form-check flex-fill border rounded-3 p-3" id="roleTailor" style="cursor:pointer;">
+              <input class="form-check-input" type="radio" name="role" value="tailor" id="roleT">
+              <label class="form-check-label w-100" for="roleT" style="cursor:pointer;">
+                <i class="bi bi-scissors me-1"></i><strong>Tailor</strong>
+                <div class="text-muted small">I provide stitching services</div>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input type="text" name="name" class="form-control" placeholder="Your full name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Phone</label>
+            <input type="tel" name="phone" class="form-control" placeholder="10-digit number" required>
+          </div>
+
+          <div id="tailorFields" class="col-12 d-none">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Shop Name</label>
+                <input type="text" name="shop_name" class="form-control" placeholder="Your tailor shop name">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Shop Address</label>
+                <input type="text" name="address" class="form-control" placeholder="Full shop address">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Password</label>
+            <input type="password" name="password" class="form-control" placeholder="Min 6 characters" required minlength="6">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Confirm Password</label>
+            <input type="password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-brand w-100 py-2 fw-semibold mt-4">
+          <i class="bi bi-person-plus me-2"></i>Create Account
+        </button>
+      </form>
+      <hr class="my-4">
+      <p class="text-center text-muted small mb-0">
+        Already have an account?
+        <a href="{{ url_for('auth.login') }}" class="text-decoration-none fw-semibold" style="color:var(--brand);">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  const tailorFields = document.getElementById('tailorFields');
+  document.querySelectorAll('input[name="role"]').forEach(r => {
+    r.addEventListener('change', () => {
+      tailorFields.classList.toggle('d-none', r.value !== 'tailor');
+    });
+  });
+</script>
+{% endblock %}

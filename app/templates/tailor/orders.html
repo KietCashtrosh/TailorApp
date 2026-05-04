@@ -1,0 +1,42 @@
+{% extends "tailor/base.html" %}
+{% block title %}My Orders{% endblock %}
+{% block tailor_content %}
+<h4 class="fw-bold mb-4"><i class="bi bi-receipt me-2 text-info"></i>My Orders</h4>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <div class="d-flex flex-wrap gap-2">
+      {% for val, label in [('','All'),('placed','New'),('accepted','Accepted'),('fabric_collected','Fabric Received'),('stitching','Stitching'),('ready','Ready'),('delivered','Delivered'),('rejected','Rejected')] %}
+      <a href="{{ url_for('tailor.orders', status=val) }}"
+         class="btn btn-sm {% if status_filter == val %}btn-info text-white{% else %}btn-outline-secondary{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Order #</th><th>Customer</th><th>Design</th><th>Price</th><th>Est. Days</th><th>Status</th><th>Date</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td><code class="small">{{ o.order_number }}</code></td>
+          <td>{{ o.customer.name }}<br><span class="text-muted small">{{ o.customer.phone }}</span></td>
+          <td>{{ o.design.name }}</td>
+          <td>₹{{ o.final_price or o.estimated_price or '—' }}</td>
+          <td class="text-muted">{{ o.estimated_days or '—' }} days</td>
+          <td><span class="badge bg-{{ o.status_badge() }}">{{ o.status_label() }}</span></td>
+          <td class="text-muted small">{{ o.created_at.strftime('%d %b %Y') }}</td>
+          <td><a href="{{ url_for('tailor.order_detail', order_id=o.id) }}" class="btn btn-sm btn-outline-secondary">Manage</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-5">No orders found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

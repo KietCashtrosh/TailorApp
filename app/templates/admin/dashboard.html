@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block admin_content %}
+<h4 class="fw-bold mb-4"><i class="bi bi-speedometer2 me-2 text-primary"></i>Admin Dashboard</h4>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Total Orders</div>
+      <div class="fs-2 fw-bold text-primary">{{ stats.total_orders }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Active Orders</div>
+      <div class="fs-2 fw-bold text-warning">{{ stats.pending_orders }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Delivered</div>
+      <div class="fs-2 fw-bold text-success">{{ stats.delivered_orders }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Active Tailors</div>
+      <div class="fs-2 fw-bold" style="color:var(--brand);">{{ stats.total_tailors }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Customers</div>
+      <div class="fs-2 fw-bold text-info">{{ stats.total_customers }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card bg-white shadow-sm">
+      <div class="text-muted small mb-1">Delivery Agents</div>
+      <div class="fs-2 fw-bold text-secondary">{{ stats.total_delivery }}</div>
+    </div>
+  </div>
+</div>
+
+<div hx-get="{{ url_for('admin.notifications') }}" hx-trigger="every 12s" hx-swap="none"></div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history me-2"></i>Recent Orders</span>
+    <a href="{{ url_for('admin.orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Order #</th><th>Customer</th><th>Tailor</th><th>Design</th><th>Status</th><th>Date</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in recent_orders %}
+        <tr>
+          <td><code class="small">{{ o.order_number }}</code></td>
+          <td>{{ o.customer.name }}</td>
+          <td>{{ o.tailor.shop_name }}</td>
+          <td>{{ o.design.name }}</td>
+          <td><span class="badge bg-{{ o.status_badge() }}">{{ o.status_label() }}</span></td>
+          <td class="text-muted small">{{ o.created_at.strftime('%d %b %Y') }}</td>
+          <td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No orders yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>setTimeout(() => location.reload(), 12000);</script>
+{% endblock %}

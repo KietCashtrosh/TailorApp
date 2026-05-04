@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Find Tailors{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  #map { height: 340px; border-radius: 12px; }
+  .tailor-card { transition: all .2s; }
+  .tailor-card:hover { box-shadow: 0 8px 25px rgba(79,70,229,.15); transform: translateY(-2px); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="bg-white border-bottom py-3 px-4 sticky-top" style="z-index:100;">
+  <div class="container-fluid">
+    <form method="GET" action="{{ url_for('customer.tailors') }}" class="row g-2 align-items-center">
+      <div class="col-12 col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" name="search" value="{{ search }}" class="form-control border-start-0" placeholder="Search shop name or area…">
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <select name="design" class="form-select">
+          <option value="">All Designs</option>
+          {% for d in designs %}
+          <option value="{{ d.name }}" {% if design_filter == d.name %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <button type="button" class="btn btn-outline-secondary w-100" id="locateBtn">
+          <i class="bi bi-geo-alt me-1"></i>Near Me
+        </button>
+        <input type="hidden" name="lat" id="latInput" value="{{ user_lat or '' }}">
+        <input type="hidden" name="lng" id="lngInput" value="{{ user_lng or '' }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <button type="submit" class="btn btn-brand w-100">Search</button>
+      </div>
+      {% if design_filter or search or user_lat %}
+      <div class="col-6 col-md-1">
+        <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-secondary w-100">Clear</a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="container-fluid px-4 py-4">
+  <div class="row g-4">
+    <!-- Map -->
+    <div class="col-12">
+      <div id="map"></div>
+    </div>
+
+    <!-- Results header -->
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0">
+          {{ tailors|length }} tailor{{ 's' if tailors|length != 1 }} found
+          {% if design_filter %}<span class="text-muted fw-normal small">for {{ design_filter }}</span>{% endif %}
+        </h5>
+        {% if user_lat %}<span class="text-muted small"><i class="bi bi-geo-alt-fill text-primary me-1"></i>Sorted by distance</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- Tailor Cards -->
+    {% for t in tailors %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm tailor-card h-100">
+        <div class="card-body p-4">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center text-primary fw-bold flex-shrink-0" style="width:52px;height:52px;font-size:1.4rem;">
+              {{ t.shop_name[0] }}
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="fw-bold text-truncate">{{ t.shop_name }}</div>
+              <div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ t.address[:50] }}{% if t.address|length > 50 %}…{% endif %}</div>
+              {% if t.distance is defined and t.distance is not none %}
+              <div class="text-primary small fw-semibold"><i class="bi bi-signpost me-1"></i>{{ t.distance }} km away</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-3 text-muted small mb-3">
+            <span><i class="bi bi-star-fill text-warning me-1"></i><strong>{{ '%.1f'|format(t.rating) }}</strong> ({{ t.rating_count }})</span>
+            <span><i class="bi bi-briefcase me-1"></i>{{ t.experience_years }} yrs</span>
+          </div>
+
+          {% if t.bio %}
+          <p class="text-muted small mb-3" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ t.bio }}</p>
+          {% endif %}
+
+          <div class="mb-3">
+            {% for spec in t.get_specializations() %}
+            <span class="badge bg-light text-dark me-1 mb-1 border">{{ spec }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}" class="btn btn-outline-primary btn-sm flex-fill">View Profile</a>
+            {% if current_user.is_authenticated and current_user.role == 'customer' %}
+            <a href="{{ url_for('customer.place_order', tailor_id=t.id) }}" class="btn btn-brand btn-sm flex-fill">Order Now</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+      <i class="bi bi-search display-3 text-muted opacity-30"></i>
+      <h5 class="mt-3 text-muted">No tailors found</h5>
+      <p class="text-muted">Try adjusting your filters or search term.</p>
+      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-primary">Clear Filters</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// Build tailor data from template
+const tailorData = [
+  {% for t in tailors %}
+  {% if t.latitude and t.longitude and t.latitude != 0 %}
+  { id: {{ t.id }}, name: {{ t.shop_name|tojson }}, address: {{ t.address|tojson }}, lat: {{ t.latitude }}, lng: {{ t.longitude }}, rating: {{ t.rating }} },
+  {% endif %}
+  {% endfor %}
+];
+
+const bounds = [];
+tailorData.forEach(t => {
+  const marker = L.marker([t.lat, t.lng]).addTo(map);
+  marker.bindPopup(`<strong>${t.name}</strong><br>${t.address}<br>⭐ ${t.rating.toFixed(1)}<br><a href="/tailors/${t.id}">View Profile</a>`);
+  bounds.push([t.lat, t.lng]);
+});
+if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40] });
+
+{% if user_lat and user_lng %}
+L.circleMarker([{{ user_lat }}, {{ user_lng }}], { radius: 10, color: '#4f46e5', fillColor: '#4f46e5', fillOpacity: 0.4 })
+  .addTo(map).bindPopup('Your Location');
+map.setView([{{ user_lat }}, {{ user_lng }}], 12);
+{% endif %}
+
+document.getElementById('locateBtn').addEventListener('click', function() {
+  this.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Locating…';
+  this.disabled = true;
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById('latInput').value = pos.coords.latitude;
+    document.getElementById('lngInput').value = pos.coords.longitude;
+    this.closest('form').submit();
+  }, () => {
+    alert('Could not get your location. Please allow location access.');
+    this.innerHTML = '<i class="bi bi-geo-alt me-1"></i>Near Me';
+    this.disabled = false;
+  });
+});
+</script>
+{% endblock %}

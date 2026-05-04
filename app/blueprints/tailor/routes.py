@@ -1,0 +1,205 @@
+import json
+from functools import wraps
+from flask import render_template, redirect, url_for, flash, request
+from flask_login import login_required, current_user
+from app.blueprints.tailor import tailor_bp
+from app.extensions import db
+from app.models import Order, TailorProfile, Design, TailorMeasurementTemplate
+
+
+def tailor_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'tailor':
+            flash('Tailor access required.', 'danger')
+            return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def get_tailor_profile():
+    return TailorProfile.query.filter_by(user_id=current_user.id).first_or_404()
+
+
+@tailor_bp.route('/')
+@login_required
+@tailor_required
+def dashboard():
+    profile = get_tailor_profile()
+    stats = {
+        'new': profile.orders.filter_by(status='placed').count(),
+        'active': profile.orders.filter(
+            Order.status.in_(['accepted', 'fabric_pickup', 'fabric_collected', 'stitching'])
+        ).count(),
+        'ready': profile.orders.filter_by(status='ready').count(),
+        'completed': profile.orders.filter_by(status='delivered').count(),
+    }
+    recent = profile.orders.order_by(Order.created_at.desc()).limit(8).all()
+    return render_template('tailor/dashboard.html', profile=profile, stats=stats, recent=recent)
+
+
+@tailor_bp.route('/notifications')
+@login_required
+@tailor_required
+def notifications():
+    from flask import jsonify
+    profile = get_tailor_profile()
+    return jsonify({'new_orders': profile.orders.filter_by(status='placed').count()})
+
+
+@tailor_bp.route('/orders')
+@login_required
+@tailor_required
+def orders():
+    profile = get_tailor_profile()
+    status_filter = request.args.get('status', '')
+    q = profile.orders.order_by(Order.created_at.desc())
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+    return render_template('tailor/orders.html', orders=q.all(),
+                           status_filter=status_filter, profile=profile)
+
+
+@tailor_bp.route('/orders/<int:order_id>')
+@login_required
+@tailor_required
+def order_detail(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+    history = order.status_history.all()
+    measurements = order.get_measurements()
+
+    # Use tailor's custom template fields if defined, otherwise fallback to global
+    tmpl = profile.get_measurement_template(order.design_id)
+    design_fields = tmpl.get_measurement_fields() if tmpl else order.design.get_measurement_fields()
+
+    return render_template('tailor/order_detail.html', order=order,
+                           history=history, measurements=measurements,
+                           design_fields=design_fields)
+
+
+@tailor_bp.route('/orders/<int:order_id>/update-status', methods=['POST'])
+@login_required
+@tailor_required
+def update_order_status(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+    new_status = request.form.get('status', '')
+    note = request.form.get('note', '')
+    estimated_days = request.form.get('estimated_days', type=int)
+    final_price = request.form.get('final_price', type=float)
+
+    allowed = {
+        'placed': ['accepted', 'rejected'],
+        'fabric_collected': ['stitching'],
+        'stitching': ['ready'],
+    }
+
+    if new_status not in allowed.get(order.status, []):
+        flash('Invalid status transition.', 'danger')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+    if new_status == 'accepted':
+        if estimated_days:
+            order.estimated_days = estimated_days
+        if final_price:
+            order.final_price = final_price
+        elif order.design:
+            # Use tailor's custom price if set
+            tmpl = profile.get_measurement_template(order.design_id)
+            order.estimated_price = tmpl.effective_price() if tmpl else order.design.base_price
+
+    order.add_status(new_status, note=note, changed_by_id=current_user.id)
+    db.session.commit()
+    flash(f'Order status updated to "{order.status_label()}".', 'success')
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+@tailor_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+@tailor_required
+def profile():
+    tailor_profile = get_tailor_profile()
+    all_designs = Design.query.filter_by(is_active=True).all()
+
+    if request.method == 'POST':
+        tailor_profile.shop_name = request.form.get('shop_name', '').strip()
+        tailor_profile.address = request.form.get('address', '').strip()
+        tailor_profile.bio = request.form.get('bio', '').strip()
+        tailor_profile.experience_years = request.form.get('experience_years', 0, type=int)
+        try:
+            tailor_profile.latitude = float(request.form.get('latitude', 0) or 0)
+            tailor_profile.longitude = float(request.form.get('longitude', 0) or 0)
+        except (ValueError, TypeError):
+            pass
+        tailor_profile.set_specializations(request.form.getlist('specializations'))
+        current_user.name = request.form.get('name', current_user.name).strip()
+        current_user.phone = request.form.get('phone', current_user.phone).strip()
+        db.session.commit()
+        flash('Profile updated successfully.', 'success')
+        return redirect(url_for('tailor.profile'))
+
+    return render_template('tailor/profile.html',
+                           tailor_profile=tailor_profile, all_designs=all_designs)
+
+
+# ── Measurement Templates ──────────────────────────────────
+@tailor_bp.route('/measurement-templates')
+@login_required
+@tailor_required
+def measurement_templates():
+    profile = get_tailor_profile()
+    designs = Design.query.filter_by(is_active=True).all()
+    templates = {t.design_id: t for t in profile.measurement_templates.all()}
+    return render_template('tailor/measurement_templates.html',
+                           profile=profile, designs=designs, templates=templates)
+
+
+@tailor_bp.route('/measurement-templates/<int:design_id>', methods=['GET', 'POST'])
+@login_required
+@tailor_required
+def edit_measurement_template(design_id):
+    profile = get_tailor_profile()
+    design = Design.query.get_or_404(design_id)
+    tmpl = profile.measurement_templates.filter_by(design_id=design_id).first()
+
+    if request.method == 'POST':
+        keys = request.form.getlist('field_key')
+        labels = request.form.getlist('field_label')
+        fields = [{'key': k.strip(), 'label': l.strip()}
+                  for k, l in zip(keys, labels) if k.strip() and l.strip()]
+        custom_price = request.form.get('custom_price', type=float)
+
+        if tmpl:
+            tmpl.set_measurement_fields(fields)
+            tmpl.custom_price = custom_price
+        else:
+            tmpl = TailorMeasurementTemplate(
+                tailor_id=profile.id,
+                design_id=design_id,
+                custom_price=custom_price,
+            )
+            tmpl.set_measurement_fields(fields)
+            db.session.add(tmpl)
+
+        db.session.commit()
+        flash(f'Measurement template for {design.name} saved.', 'success')
+        return redirect(url_for('tailor.measurement_templates'))
+
+    # Pre-fill with global fields if no custom template yet
+    default_fields = tmpl.get_measurement_fields() if tmpl else design.get_measurement_fields()
+    return render_template('tailor/edit_measurement_template.html',
+                           design=design, tmpl=tmpl, default_fields=default_fields)
+
+
+@tailor_bp.route('/measurement-templates/<int:design_id>/reset', methods=['POST'])
+@login_required
+@tailor_required
+def reset_measurement_template(design_id):
+    profile = get_tailor_profile()
+    tmpl = profile.measurement_templates.filter_by(design_id=design_id).first()
+    if tmpl:
+        db.session.delete(tmpl)
+        db.session.commit()
+        flash('Template reset to global defaults.', 'success')
+    return redirect(url_for('tailor.measurement_templates'))

@@ -1,0 +1,122 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if design.id %}Edit Design{% else %}New Design{% endif %}{% endblock %}
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.designs') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">{% if design.id %}Edit Design: {{ design.name }}{% else %}Add New Design{% endif %}</h4>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold py-3">Basic Info</div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Design Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" value="{{ design.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Base Price (Rs.) <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">Rs.</span>
+                <input type="number" name="base_price" class="form-control" value="{{ design.base_price or '' }}" step="1" required>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description</label>
+              <input type="text" name="description" class="form-control" value="{{ design.description }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Icon Class <span class="text-muted small">(Bootstrap Icons)</span></label>
+              <input type="text" name="icon" class="form-control" value="{{ design.icon or 'bi-scissors' }}" placeholder="bi-scissors">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Design Image</label>
+              <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.webp">
+              {% if design.image_url() %}
+              <div class="mt-2"><img src="{{ design.image_url() }}" style="height:60px;border-radius:6px;"> <span class="text-muted small">Current image</span></div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="isActive" {% if design.is_active or not design.id %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="isActive">Active (visible to customers)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Measurement Fields</span>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="addFieldBtn"><i class="bi bi-plus me-1"></i>Add Field</button>
+        </div>
+        <div class="card-body p-4">
+          <div class="small text-muted mb-3">Define what measurements delivery partners and customers will fill in for this design.</div>
+          <div id="fieldsContainer">
+            {% for field in design.get_measurement_fields() %}
+            <div class="row g-2 mb-2 field-row">
+              <div class="col-5"><input type="text" name="field_key" class="form-control form-control-sm" placeholder="key (e.g. chest)" value="{{ field.key }}" required></div>
+              <div class="col-6"><input type="text" name="field_label" class="form-control form-control-sm" placeholder="Label (e.g. Chest (inches))" value="{{ field.label }}" required></div>
+              <div class="col-1"><button type="button" class="btn btn-sm btn-outline-danger remove-field"><i class="bi bi-x"></i></button></div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="text-muted small mt-2">Key = unique identifier (no spaces, use underscores). Label = display text.</div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-3">
+        <a href="{{ url_for('admin.designs') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        <button type="submit" class="btn btn-brand px-5">Save Design</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-3">Preview</div>
+      <div class="card-body text-center p-4">
+        <div style="font-size:4rem;">✂️</div>
+        <h5 id="previewName" class="fw-bold mt-2">{{ design.name or 'Design Name' }}</h5>
+        <div id="previewDesc" class="text-muted small">{{ design.description }}</div>
+        <div class="fw-bold text-primary mt-2" id="previewPrice">Rs.{{ (design.base_price or 0)|int }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('addFieldBtn').addEventListener('click', function() {
+  const container = document.getElementById('fieldsContainer');
+  const row = document.createElement('div');
+  row.className = 'row g-2 mb-2 field-row';
+  row.innerHTML = `
+    <div class="col-5"><input type="text" name="field_key" class="form-control form-control-sm" placeholder="key (e.g. chest)" required></div>
+    <div class="col-6"><input type="text" name="field_label" class="form-control form-control-sm" placeholder="Label (e.g. Chest (inches))" required></div>
+    <div class="col-1"><button type="button" class="btn btn-sm btn-outline-danger remove-field"><i class="bi bi-x"></i></button></div>
+  `;
+  container.appendChild(row);
+});
+
+document.addEventListener('click', e => {
+  if (e.target.closest('.remove-field')) e.target.closest('.field-row').remove();
+});
+
+['name','description','base_price'].forEach(id => {
+  const el = document.querySelector(`[name="${id}"]`);
+  if (el) el.addEventListener('input', () => {
+    if (id === 'name') document.getElementById('previewName').textContent = el.value || 'Design Name';
+    if (id === 'description') document.getElementById('previewDesc').textContent = el.value;
+    if (id === 'base_price') document.getElementById('previewPrice').textContent = 'Rs.' + (parseInt(el.value)||0);
+  });
+});
+</script>
+{% endblock %}

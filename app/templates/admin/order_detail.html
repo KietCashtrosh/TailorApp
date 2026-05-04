@@ -1,0 +1,144 @@
+{% extends "admin/base.html" %}
+{% block title %}Order {{ order.order_number }}{% endblock %}
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.orders') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Order <code>{{ order.order_number }}</code></h4>
+  <span class="badge bg-{{ order.status_badge() }} fs-6">{{ order.status_label() }}</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <!-- Order Info -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3">Order Details</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small">Customer</div>
+            <div class="fw-semibold">{{ order.customer.name }}</div>
+            <div class="small text-muted">{{ order.customer.phone }} · {{ order.customer.email }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Tailor</div>
+            <div class="fw-semibold">{{ order.tailor.shop_name }}</div>
+            <div class="small text-muted">{{ order.tailor.address }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Design</div>
+            <div class="fw-semibold">{{ order.design.name }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Estimated Price</div>
+            <div class="fw-semibold">₹{{ order.estimated_price or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Final Price</div>
+            <div class="fw-semibold text-success">₹{{ order.final_price or '—' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Pickup Address (Fabric)</div>
+            <div>{{ order.pickup_address }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Delivery Address</div>
+            <div>{{ order.delivery_address }}</div>
+          </div>
+          {% if order.fabric_description %}
+          <div class="col-12">
+            <div class="text-muted small">Fabric Description</div>
+            <div>{{ order.fabric_description }}</div>
+          </div>
+          {% endif %}
+          {% if order.special_instructions %}
+          <div class="col-12">
+            <div class="text-muted small">Special Instructions</div>
+            <div>{{ order.special_instructions }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Delivery Assignments -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-truck me-2"></i>Delivery Assignments</span>
+      </div>
+      <div class="card-body">
+        {% if assignments %}
+        <div class="table-responsive">
+          <table class="table align-middle small mb-0">
+            <thead class="table-light"><tr><th>Type</th><th>Agent</th><th>Pickup</th><th>Dropoff</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for a in assignments %}
+              <tr>
+                <td>{{ a.type_label() }}</td>
+                <td>{{ a.delivery_agent.name }}</td>
+                <td class="text-muted">{{ a.pickup_address[:40] }}…</td>
+                <td class="text-muted">{{ a.dropoff_address[:40] }}…</td>
+                <td><span class="badge bg-{% if a.status == 'delivered' %}success{% elif a.status == 'picked_up' %}warning{% else %}secondary{% endif %}">{{ a.status.replace('_',' ').title() }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No delivery assignments yet.</p>
+        {% endif %}
+      </div>
+
+      {% if order.status in ['accepted', 'fabric_collected', 'stitching', 'ready'] %}
+      <div class="card-footer bg-white">
+        <div class="fw-semibold small mb-2">Assign Delivery Agent</div>
+        <form method="POST" action="{{ url_for('admin.assign_delivery', order_id=order.id) }}" class="row g-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-md-4">
+            <select name="agent_id" class="form-select form-select-sm" required>
+              <option value="">Select Agent</option>
+              {% for agent in delivery_agents %}
+              <option value="{{ agent.id }}">{{ agent.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <select name="assignment_type" class="form-select form-select-sm" required>
+              <option value="">Assignment Type</option>
+              <option value="pickup_fabric">Pickup Fabric from Customer</option>
+              <option value="deliver_clothes">Deliver Clothes to Customer</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <input type="text" name="notes" class="form-control form-control-sm" placeholder="Notes (optional)">
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-brand btn-sm w-100">Assign</button>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <!-- Status Timeline -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2"></i>Status History</div>
+      <div class="card-body">
+        <div class="status-timeline">
+          {% for h in history %}
+          <div class="step done">
+            <div class="fw-semibold small">{{ h.status_label() }}</div>
+            <div class="text-muted" style="font-size:.75rem;">
+              {{ h.created_at.strftime('%d %b %Y, %I:%M %p') }}
+              {% if h.changed_by %} · {{ h.changed_by.name }}{% endif %}
+            </div>
+            {% if h.note %}<div class="text-muted small fst-italic">{{ h.note }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

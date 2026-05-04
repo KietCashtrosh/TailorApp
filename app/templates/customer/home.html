@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Find Tailors Near You{% endblock %}
+{% block extra_head %}
+<style>
+  .hero { background: linear-gradient(135deg,#1e1b4b 0%,#4f46e5 60%,#818cf8 100%); }
+  .design-card { cursor: pointer; border-radius: 16px; transition: all .2s; border: 2px solid transparent; }
+  .design-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(79,70,229,.2); border-color: var(--brand); }
+  .design-icon { font-size: 3rem; }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Hero -->
+<div class="hero text-white py-5 px-4">
+  <div class="container py-3">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="display-5 fw-bold mb-3">Custom Stitching,<br>Delivered to Your Door</h1>
+        <p class="lead text-white-75 mb-4">Find skilled tailors near you. Share your fabric, pick your design, track your order — all in one place.</p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="{{ url_for('customer.tailors') }}" class="btn btn-light fw-semibold px-4 py-2">
+            <i class="bi bi-search me-2"></i>Find Tailors
+          </a>
+          {% if not current_user.is_authenticated %}
+          <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light fw-semibold px-4 py-2">Get Started</a>
+          {% else %}
+          <a href="{{ url_for('customer.place_order') }}" class="btn btn-outline-light fw-semibold px-4 py-2">
+            <i class="bi bi-plus-circle me-2"></i>Place Order
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-lg-6 text-center mt-4 mt-lg-0">
+        <div style="font-size:8rem;opacity:.3;">✂️</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<div class="bg-white py-5">
+  <div class="container">
+    <h2 class="text-center fw-bold mb-2">How It Works</h2>
+    <p class="text-center text-muted mb-5">Get your clothes stitched in 4 simple steps</p>
+    <div class="row g-4 text-center">
+      {% for step in [
+        ('1', 'bi-search', 'primary', 'Find a Tailor', 'Browse tailors near you by location or specialization'),
+        ('2', 'bi-rulers', 'success', 'Share Measurements', 'Enter your measurements and describe your fabric'),
+        ('3', 'bi-scissors', 'warning', 'Tailor Stitches', 'Our delivery agent picks up your fabric and delivers to the tailor'),
+        ('4', 'bi-box-arrow-in-down-right', 'info', 'Get it Delivered', 'Your finished clothes are delivered back to your door'),
+      ] %}
+      <div class="col-6 col-md-3">
+        <div class="rounded-circle bg-{{ step[2] }} bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width:72px;height:72px;">
+          <i class="bi {{ step[1] }} text-{{ step[2] }} fs-3"></i>
+        </div>
+        <div class="fw-bold fs-6 mb-1">{{ step[3] }}</div>
+        <div class="text-muted small">{{ step[4] }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Design Categories -->
+<div class="py-5 bg-light">
+  <div class="container">
+    <h2 class="fw-bold mb-2">What Would You Like Stitched?</h2>
+    <p class="text-muted mb-4">Choose a design to find tailors who specialise in it</p>
+    <div class="row g-3">
+      {% for design in designs %}
+      <div class="col-6 col-md-3">
+        <a href="{{ url_for('customer.tailors', design=design.name) }}" class="text-decoration-none">
+          <div class="design-card bg-white p-4 text-center shadow-sm h-100">
+            <div class="design-icon mb-2">
+              {% if design.name == 'Blouse' %}🪡
+              {% elif design.name == 'Lehenga' %}👗
+              {% elif design.name == 'Shirt' %}👔
+              {% elif design.name == 'Trouser' %}👖
+              {% else %}✂️{% endif %}
+            </div>
+            <div class="fw-bold">{{ design.name }}</div>
+            <div class="text-muted small mb-2">{{ design.description }}</div>
+            <div class="text-primary fw-semibold">from ₹{{ design.base_price|int }}</div>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Featured Tailors -->
+<div class="py-5 bg-white">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="fw-bold mb-1">Featured Tailors</h2>
+        <p class="text-muted mb-0">Verified, skilled, and ready to stitch</p>
+      </div>
+      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-primary">View All</a>
+    </div>
+    <div class="row g-3">
+      {% for t in featured_tailors %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm tailor-card h-100">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:50px;height:50px;font-size:1.3rem;">
+                {{ t.shop_name[0] }}
+              </div>
+              <div>
+                <div class="fw-bold">{{ t.shop_name }}</div>
+                <div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ t.address[:40] }}{% if t.address|length > 40 %}…{% endif %}</div>
+              </div>
+            </div>
+            <div class="d-flex gap-3 mb-3 text-muted small">
+              <span><i class="bi bi-star-fill text-warning me-1"></i>{{ '%.1f'|format(t.rating) }}</span>
+              <span><i class="bi bi-briefcase me-1"></i>{{ t.experience_years }} yrs</span>
+            </div>
+            <div class="mb-3">
+              {% for spec in t.get_specializations() %}
+              <span class="badge bg-light text-dark me-1 mb-1">{{ spec }}</span>
+              {% endfor %}
+            </div>
+            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}" class="btn btn-brand w-100 btn-sm">
+              View & Order
+            </a>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-12 text-center text-muted py-4">No tailors registered yet. <a href="{{ url_for('auth.register') }}">Register as a tailor</a></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="py-4 text-center text-muted small" style="background:#1e1b4b;color:#c7d2fe!important;">
+  <div style="color:#c7d2fe;">© 2025 TailorApp · Custom stitching, delivered.</div>
+</footer>
+{% endblock %}

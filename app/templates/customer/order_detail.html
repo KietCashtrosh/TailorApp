@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Order {{ order.order_number }}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:860px;">
+  <a href="{{ url_for('customer.my_orders') }}" class="btn btn-sm btn-outline-secondary mb-4">
+    <i class="bi bi-arrow-left me-1"></i>My Orders
+  </a>
+
+  <!-- Status Banner -->
+  <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg,#1e1b4b,#4f46e5);">
+    <div class="card-body p-4 text-white">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <div class="small text-white-50 mb-1">Order Number</div>
+          <h4 class="fw-bold mb-1"><code class="text-white">{{ order.order_number }}</code></h4>
+          <div class="small text-white-50">Placed on {{ order.created_at.strftime('%d %B %Y') }}</div>
+        </div>
+        <span class="badge bg-{{ order.status_badge() }} fs-5 px-4 py-2">{{ order.status_label() }}</span>
+      </div>
+
+      {% set steps = ['placed','accepted','fabric_pickup','fabric_collected','stitching','ready','out_for_delivery','delivered'] %}
+      {% if order.status not in ['rejected','cancelled'] %}
+      {% set current_idx = steps.index(order.status) if order.status in steps else 0 %}
+      {% set pct = ((current_idx) / (steps|length - 1) * 100) | int %}
+      <div class="mt-4">
+        <div class="progress" style="height:8px;border-radius:4px;background:rgba(255,255,255,.2);">
+          <div class="progress-bar bg-white" style="width:{{ pct }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-2" style="font-size:.65rem;color:rgba(255,255,255,.6);">
+          <span>Placed</span><span>Accepted</span><span>Stitching</span><span>Ready</span><span>Delivered</span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+
+      <!-- Order Summary -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold py-3">Order Summary</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="text-muted small">Design</div>
+              <div class="fw-semibold">{{ order.design.name }}</div>
+            </div>
+            <div class="col-md-6">
+              <div class="text-muted small">Tailor</div>
+              <div class="fw-semibold">{{ order.tailor.shop_name }}</div>
+              <div class="text-muted small">{{ order.tailor.user.phone }}</div>
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted small">Price</div>
+              <div class="fw-semibold text-success fs-5">Rs.{{ order.final_price or order.estimated_price or '—' }}</div>
+              {% if order.discount_amount and order.discount_amount > 0 %}
+              <div class="text-muted small">Discount: <span class="text-danger">-Rs.{{ order.discount_amount|int }}</span>
+                {% if order.coupon_code %}<span class="badge bg-light text-dark border ms-1">{{ order.coupon_code }}</span>{% endif %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted small">Est. Days</div>
+              <div class="fw-semibold">{{ order.estimated_days or '—' }}</div>
+            </div>
+            <div class="col-12">
+              <div class="text-muted small">Pickup Address</div>
+              <div><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ order.pickup_address }}</div>
+            </div>
+            <div class="col-12">
+              <div class="text-muted small">Delivery Address</div>
+              <div><i class="bi bi-geo-alt-fill text-success me-1"></i>{{ order.delivery_address }}</div>
+            </div>
+            {% if order.fabric_description %}
+            <div class="col-12">
+              <div class="text-muted small">Fabric</div>
+              <div>{{ order.fabric_description }}</div>
+            </div>
+            {% endif %}
+            {% if order.special_instructions %}
+            <div class="col-12">
+              <div class="text-muted small">Special Instructions</div>
+              <div>{{ order.special_instructions }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- OTP Codes -->
+      {% if assignments %}
+      <div class="card border-0 shadow-sm mb-4 border-warning border-2">
+        <div class="card-header bg-warning bg-opacity-10 py-3">
+          <span class="fw-semibold text-warning"><i class="bi bi-key-fill me-2"></i>Your OTP Codes</span>
+          <div class="text-muted small mt-1">Share these with the delivery agent when they arrive.</div>
+        </div>
+        <div class="card-body">
+          {% for a in assignments %}
+          <div class="{% if not loop.last %}border-bottom pb-3 mb-3{% endif %}">
+            <div class="text-muted small fw-semibold mb-2">
+              {% if a.assignment_type == 'pickup_fabric' %}Fabric Pickup Assignment{% else %}Clothes Delivery Assignment{% endif %}
+            </div>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="text-muted small">Pickup OTP</div>
+                <div class="fw-bold fs-3 {% if a.pickup_otp_verified %}text-muted{% else %}text-warning{% endif %}">
+                  {{ a.pickup_otp }}
+                </div>
+                {% if a.pickup_otp_verified %}
+                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Verified</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">Give to agent on pickup</span>
+                {% endif %}
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">Delivery OTP</div>
+                <div class="fw-bold fs-3 {% if a.delivery_otp_verified %}text-muted{% else %}text-success{% endif %}">
+                  {{ a.delivery_otp }}
+                </div>
+                {% if a.delivery_otp_verified %}
+                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Verified</span>
+                {% else %}
+                <span class="badge bg-secondary">Give to agent on delivery</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Measurements -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Measurements</div>
+        <div class="card-body">
+          <div class="row g-2">
+            {% for field in design_fields %}
+            <div class="col-6 col-md-4">
+              <div class="text-muted small">{{ field.label }}</div>
+              <div class="fw-semibold">{{ measurements.get(field.key, '—') }} in</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Review -->
+      {% if order.status == 'delivered' %}
+      {% if order.review %}
+      <div class="card border-0 shadow-sm border-start border-4 border-success">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-star-fill text-warning me-2"></i>Your Review</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <div class="text-muted small mb-1">Tailor Rating</div>
+            <div>
+              {% for i in range(5) %}<i class="bi bi-star{% if i < order.review.tailor_rating %}-fill text-warning{% endif %}"></i>{% endfor %}
+            </div>
+            {% if order.review.tailor_comment %}<div class="text-muted small fst-italic mt-1">{{ order.review.tailor_comment }}</div>{% endif %}
+          </div>
+          {% if order.review.delivery_rating %}
+          <div>
+            <div class="text-muted small mb-1">Delivery Rating</div>
+            <div>
+              {% for i in range(5) %}<i class="bi bi-star{% if i < order.review.delivery_rating %}-fill text-warning{% endif %}"></i>{% endfor %}
+            </div>
+            {% if order.review.delivery_comment %}<div class="text-muted small fst-italic mt-1">{{ order.review.delivery_comment }}</div>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card border-0 shadow-sm border-start border-4 border-warning">
+        <div class="card-body p-4 d-flex align-items-center gap-3">
+          <i class="bi bi-star-half text-warning fs-2"></i>
+          <div>
+            <div class="fw-semibold mb-1">How was your experience?</div>
+            <div class="text-muted small mb-2">Rate your tailor and delivery agent.</div>
+            <a href="{{ url_for('customer.submit_review', order_id=order.id) }}" class="btn btn-warning btn-sm fw-semibold">
+              <i class="bi bi-star me-1"></i>Write a Review
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+    </div>
+
+    <div class="col-lg-5">
+      <!-- Status Timeline -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2"></i>Order Timeline</div>
+        <div class="card-body">
+          {% if history %}
+          <div class="status-timeline">
+            {% for h in history %}
+            <div class="step done">
+              <div class="fw-semibold small">{{ h.status_label() }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ h.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+              {% if h.note %}<div class="text-muted small fst-italic">{{ h.note }}</div>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted small">No status updates yet.</p>
+          {% endif %}
+
+          {% if order.status == 'placed' %}
+          <div class="alert alert-warning small mt-3 mb-0">
+            <i class="bi bi-hourglass me-1"></i>Waiting for tailor to accept your order.
+          </div>
+          {% elif order.status == 'accepted' %}
+          <div class="alert alert-info small mt-3 mb-0">
+            <i class="bi bi-truck me-1"></i>A delivery agent will contact you to pick up your fabric.
+          </div>
+          {% elif order.status == 'stitching' %}
+          <div class="alert alert-secondary small mt-3 mb-0">
+            <i class="bi bi-scissors me-1"></i>Your clothes are being stitched. We'll notify you when ready.
+          </div>
+          {% elif order.status == 'ready' %}
+          <div class="alert alert-success small mt-3 mb-0">
+            <i class="bi bi-bag-check me-1"></i>Your clothes are ready! A delivery agent will bring them soon.
+          </div>
+          {% elif order.status == 'delivered' %}
+          <div class="alert alert-success small mt-3 mb-0">
+            <i class="bi bi-check2-circle me-1"></i>Delivered! We hope you love your clothes.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Reviews{% endblock %}
+{% block admin_content %}
+<h4 class="fw-bold mb-4"><i class="bi bi-star me-2 text-warning"></i>Customer Reviews</h4>
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Order</th><th>Customer</th><th>Tailor</th><th>Tailor Rating</th><th>Delivery Rating</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td><a href="{{ url_for('admin.order_detail', order_id=r.order_id) }}" class="text-decoration-none"><code>{{ r.order.order_number }}</code></a></td>
+          <td>{{ r.customer.name }}</td>
+          <td>{{ r.order.tailor.shop_name }}</td>
+          <td>
+            {% for i in range(5) %}
+            <i class="bi bi-star{% if i < r.tailor_rating %}-fill text-warning{% endif %}"></i>
+            {% endfor %}
+            {% if r.tailor_comment %}<div class="text-muted small fst-italic">{{ r.tailor_comment }}</div>{% endif %}
+          </td>
+          <td>
+            {% if r.delivery_rating %}
+            {% for i in range(5) %}
+            <i class="bi bi-star{% if i < r.delivery_rating %}-fill text-warning{% endif %}"></i>
+            {% endfor %}
+            {% if r.delivery_comment %}<div class="text-muted small fst-italic">{{ r.delivery_comment }}</div>{% endif %}
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+          <td class="text-muted small">{{ r.created_at.strftime('%d %b %Y') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-5">No reviews yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

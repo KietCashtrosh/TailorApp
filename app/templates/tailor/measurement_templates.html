@@ -1,0 +1,70 @@
+{% extends "tailor/base.html" %}
+{% block title %}Measurement Templates{% endblock %}
+{% block tailor_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-rulers me-2 text-info"></i>Measurement Templates</h4>
+    <p class="text-muted mb-0">Customise which measurements you collect for each design, and set your own pricing.</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for design in designs %}
+  <div class="col-md-6 col-xl-4">
+    {% set tmpl = templates.get(design.id) %}
+    <div class="card border-0 shadow-sm h-100 {% if tmpl %}border-start border-4 border-info{% endif %}">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div class="fw-bold fs-5">{{ design.name }}</div>
+            <div class="text-muted small">{{ design.description }}</div>
+          </div>
+          <span style="font-size:2rem;">
+            {% if design.name=='Blouse' %}🪡{% elif design.name=='Lehenga' %}👗{% elif design.name=='Shirt' %}👔{% elif design.name=='Trouser' %}👖{% else %}✂️{% endif %}
+          </span>
+        </div>
+
+        {% if tmpl %}
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Your custom price</div>
+          <div class="fw-bold text-success fs-5">Rs.{{ (tmpl.custom_price or design.base_price)|int }}</div>
+          {% if tmpl.custom_price and tmpl.custom_price != design.base_price %}
+          <div class="text-muted small text-decoration-line-through">Global: Rs.{{ design.base_price|int }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Custom fields ({{ tmpl.get_measurement_fields()|length }})</div>
+          <div class="d-flex flex-wrap gap-1">
+            {% for f in tmpl.get_measurement_fields() %}
+            <span class="badge bg-light text-dark border">{{ f.label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="badge bg-info text-white mb-3">Custom template active</div>
+        {% else %}
+        <div class="mb-3">
+          <div class="text-muted small">Using global template</div>
+          <div class="fw-semibold">Rs.{{ design.base_price|int }} · {{ design.get_measurement_fields()|length }} fields</div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('tailor.edit_measurement_template', design_id=design.id) }}"
+             class="btn btn-sm {% if tmpl %}btn-outline-info{% else %}btn-outline-secondary{% endif %} flex-fill">
+            <i class="bi bi-pencil me-1"></i>{% if tmpl %}Edit{% else %}Customise{% endif %}
+          </a>
+          {% if tmpl %}
+          <form method="POST" action="{{ url_for('tailor.reset_measurement_template', design_id=design.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Reset to global defaults">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

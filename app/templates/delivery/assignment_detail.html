@@ -1,0 +1,307 @@
+{% extends "delivery/base.html" %}
+{% block title %}Assignment Detail{% endblock %}
+{% block delivery_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('delivery.assignments') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Assignment Detail</h4>
+  <span class="badge {% if assignment.status == 'delivered' %}bg-success{% elif assignment.status == 'picked_up' %}bg-info{% else %}bg-secondary{% endif %} fs-6">
+    {{ assignment.status.replace('_',' ').title() }}
+  </span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+
+    <!-- Assignment Info -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3">
+        <span class="badge {% if assignment.assignment_type == 'pickup_fabric' %}bg-warning text-dark{% else %}bg-success{% endif %} me-2">
+          {% if assignment.assignment_type == 'pickup_fabric' %}Pickup Fabric{% else %}Deliver Clothes{% endif %}
+        </span>
+        {{ assignment.type_label() }}
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="text-muted small">Order</div>
+            <div class="fw-semibold"><code>{{ assignment.order.order_number }}</code> — {{ assignment.order.design.name }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Customer</div>
+            <div class="fw-semibold">{{ assignment.order.customer.name }}</div>
+            <div class="small text-muted">{{ assignment.order.customer.phone }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Tailor</div>
+            <div class="fw-semibold">{{ assignment.order.tailor.shop_name }}</div>
+            <div class="small text-muted">{{ assignment.order.tailor.user.phone }}</div>
+          </div>
+
+          {% if assignment.assignment_type == 'pickup_fabric' %}
+          <div class="col-12">
+            <div class="text-muted small mb-1">Measurement preference</div>
+            {% set pref = assignment.order.measurement_preference %}
+            {% if pref == 'delivery_will_measure' %}
+            <span class="badge bg-success"><i class="bi bi-person-badge me-1"></i>You will take measurements</span>
+            {% elif pref == 'use_saved' %}
+            <span class="badge bg-primary"><i class="bi bi-bookmark-check me-1"></i>Customer is using saved measurements</span>
+            {% else %}
+            <span class="badge bg-secondary"><i class="bi bi-rulers me-1"></i>Customer entered measurements</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="col-12">
+            <div class="alert alert-light border mb-0">
+              <div class="mb-2">
+                <span class="text-danger fw-semibold"><i class="bi bi-geo-alt-fill me-1"></i>PICKUP FROM:</span><br>
+                {{ assignment.pickup_address }}
+              </div>
+              <hr class="my-2">
+              <div>
+                <span class="text-success fw-semibold"><i class="bi bi-geo-alt-fill me-1"></i>DROP OFF AT:</span><br>
+                {{ assignment.dropoff_address }}
+              </div>
+            </div>
+          </div>
+
+          {% if assignment.notes %}
+          <div class="col-12">
+            <div class="text-muted small">Notes</div>
+            <div>{{ assignment.notes }}</div>
+          </div>
+          {% endif %}
+          <div class="col-12 text-muted small">
+            Assigned on {{ assignment.assigned_at.strftime('%d %b %Y, %I:%M %p') }}
+            {% if assignment.completed_at %} · Completed {{ assignment.completed_at.strftime('%d %b %Y, %I:%M %p') }}{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Measurement Form (only for fabric pickup) -->
+    {% if assignment.assignment_type == 'pickup_fabric' and assignment.status in ['assigned', 'picked_up'] %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
+      <div class="card-header bg-white py-3">
+        <span class="fw-semibold"><i class="bi bi-rulers me-2 text-success"></i>Enter / Update Measurements</span>
+        <div class="text-muted small mt-1">
+          {% if assignment.order.measurement_preference == 'delivery_will_measure' %}
+            Customer asked you to take measurements on-site.
+          {% else %}
+            You can update measurements if needed.
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body p-4">
+        {% if design_fields %}
+        <form method="POST" action="{{ url_for('delivery.save_measurements', assignment_id=assignment.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-3 mb-4">
+            {% for field in design_fields %}
+            <div class="col-6 col-md-4">
+              <label class="form-label fw-semibold small">{{ field.label }}</label>
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.1" name="measurement_{{ field.key }}"
+                       class="form-control"
+                       value="{{ existing_measurements.get(field.key, '') }}"
+                       placeholder="0.0">
+                <span class="input-group-text">in</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <button type="submit" class="btn btn-success fw-semibold">
+              <i class="bi bi-save me-2"></i>Save Measurements
+            </button>
+            <span class="text-muted small">Saved to customer's profile for future orders.</span>
+          </div>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-0">No measurement fields defined for this design.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Read-only measurements for deliver_clothes -->
+    {% if assignment.assignment_type == 'deliver_clothes' or assignment.status == 'delivered' %}
+    {% if existing_measurements or design_fields %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Order Measurements</div>
+      <div class="card-body">
+        <div class="row g-2">
+          {% for field in design_fields %}
+          <div class="col-6 col-md-4">
+            <div class="text-muted small">{{ field.label }}</div>
+            <div class="fw-semibold">{{ existing_measurements.get(field.key, '—') }} in</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- OTP Verification -->
+    {% if assignment.status == 'assigned' %}
+    <div class="card border-0 shadow-sm border-start border-4 border-warning">
+      <div class="card-header bg-white py-3">
+        <span class="fw-semibold"><i class="bi bi-shield-lock me-2 text-warning"></i>Confirm Pickup with OTP</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="alert alert-warning small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Ask the customer for their <strong>Pickup OTP</strong>. Enter it below to confirm pickup.
+        </div>
+        <form method="POST" action="{{ url_for('delivery.verify_otp', assignment_id=assignment.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="pickup">
+          <div class="row g-2 align-items-end">
+            <div class="col-7">
+              <label class="form-label fw-semibold small">Pickup OTP (from customer)</label>
+              <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold letter-spacing-2"
+                     maxlength="6" placeholder="- - - - - -" required
+                     style="font-size:1.5rem;letter-spacing:.5rem;">
+            </div>
+            <div class="col-5">
+              <button type="submit" class="btn btn-warning fw-semibold w-100 py-2">
+                <i class="bi bi-check2-circle me-1"></i>Verify & Mark Picked Up
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% elif assignment.status == 'picked_up' %}
+    <div class="card border-0 shadow-sm border-start border-4 border-success">
+      <div class="card-header bg-white py-3">
+        <span class="fw-semibold"><i class="bi bi-shield-check me-2 text-success"></i>Confirm Delivery with OTP</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="alert alert-success small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Ask the {% if assignment.assignment_type == 'pickup_fabric' %}tailor{% else %}customer{% endif %} for their <strong>Delivery OTP</strong>. Enter it below to confirm delivery.
+        </div>
+        <form method="POST" action="{{ url_for('delivery.verify_otp', assignment_id=assignment.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="deliver">
+          <div class="row g-2 align-items-end">
+            <div class="col-7">
+              <label class="form-label fw-semibold small">Delivery OTP</label>
+              <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold"
+                     maxlength="6" placeholder="- - - - - -" required
+                     style="font-size:1.5rem;letter-spacing:.5rem;">
+            </div>
+            <div class="col-5">
+              <button type="submit" class="btn btn-success fw-semibold w-100 py-2">
+                <i class="bi bi-check2-all me-1"></i>Verify & Complete
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% elif assignment.status == 'delivered' %}
+    <div class="alert alert-success">
+      <i class="bi bi-check2-circle me-2"></i><strong>Delivered!</strong> This assignment is complete.
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Journey Sidebar -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-map me-2"></i>Journey</div>
+      <div class="card-body">
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-danger d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width:36px;height:36px;">
+              <i class="bi bi-geo-alt-fill"></i>
+            </div>
+            <div>
+              <div class="fw-semibold small text-danger">PICKUP</div>
+              <div class="small">{{ assignment.pickup_address }}</div>
+            </div>
+          </div>
+          <div class="ms-4 ps-1 border-start border-2" style="height:24px;border-style:dashed!important;"></div>
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-success d-flex align-items-center justify-content-center text-white flex-shrink-0" style="width:36px;height:36px;">
+              <i class="bi bi-house-fill"></i>
+            </div>
+            <div>
+              <div class="fw-semibold small text-success">DROP OFF</div>
+              <div class="small">{{ assignment.dropoff_address }}</div>
+            </div>
+          </div>
+        </div>
+        <hr class="my-3">
+        <div class="d-flex flex-column gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle {% if assignment.status in ['picked_up','delivered'] %}bg-success{% else %}bg-light border{% endif %}" style="width:20px;height:20px;"></div>
+            <span class="small {% if assignment.status in ['picked_up','delivered'] %}text-success fw-semibold{% else %}text-muted{% endif %}">OTP Verified &amp; Picked Up</span>
+          </div>
+          {% if assignment.assignment_type == 'pickup_fabric' %}
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle {% if assignment.order.measurements and assignment.order.measurements != '{}' %}bg-success{% else %}bg-light border{% endif %}" style="width:20px;height:20px;"></div>
+            <span class="small {% if assignment.order.measurements and assignment.order.measurements != '{}' %}text-success fw-semibold{% else %}text-muted{% endif %}">Measurements Recorded</span>
+          </div>
+          {% endif %}
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle {% if assignment.status == 'delivered' %}bg-success{% else %}bg-light border{% endif %}" style="width:20px;height:20px;"></div>
+            <span class="small {% if assignment.status == 'delivered' %}text-success fw-semibold{% else %}text-muted{% endif %}">OTP Verified &amp; Delivered</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OTP Reference Card -->
+    {% if assignment.status != 'delivered' %}
+    <div class="card border-0 shadow-sm mb-4 border-warning border-2">
+      <div class="card-header bg-warning bg-opacity-10 fw-semibold py-3 text-warning">
+        <i class="bi bi-key-fill me-2"></i>OTP Reference
+      </div>
+      <div class="card-body">
+        <div class="text-muted small mb-3">These OTPs are shown to the customer. Ask them to read it out to you.</div>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="text-muted small">Pickup OTP</div>
+            <div class="fw-bold fs-4 {% if assignment.pickup_otp_verified %}text-muted text-decoration-line-through{% else %}text-warning{% endif %}">
+              {{ assignment.pickup_otp }}
+            </div>
+            {% if assignment.pickup_otp_verified %}<div class="badge bg-success">Verified</div>{% endif %}
+          </div>
+          <div class="col-6">
+            <div class="text-muted small">Delivery OTP</div>
+            <div class="fw-bold fs-4 {% if assignment.delivery_otp_verified %}text-muted text-decoration-line-through{% else %}text-success{% endif %}">
+              {{ assignment.delivery_otp }}
+            </div>
+            {% if assignment.delivery_otp_verified %}<div class="badge bg-success">Verified</div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Order Notes -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-info-circle me-2"></i>Order Notes</div>
+      <div class="card-body small">
+        <div class="mb-2">
+          <span class="text-muted">Fabric:</span>
+          <span class="fw-semibold ms-1">{{ assignment.order.fabric_description or '—' }}</span>
+        </div>
+        {% if assignment.order.special_instructions %}
+        <div>
+          <span class="text-muted">Instructions:</span>
+          <span class="ms-1">{{ assignment.order.special_instructions }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

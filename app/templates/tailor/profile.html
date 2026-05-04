@@ -1,0 +1,97 @@
+{% extends "tailor/base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block tailor_content %}
+<h4 class="fw-bold mb-4"><i class="bi bi-person-gear me-2 text-info"></i>My Profile</h4>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-3">Shop & Profile Details</div>
+      <div class="card-body p-4">
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Your Name</label>
+              <input type="text" name="name" class="form-control" value="{{ current_user.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Phone</label>
+              <input type="tel" name="phone" class="form-control" value="{{ current_user.phone }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Shop Name</label>
+              <input type="text" name="shop_name" class="form-control" value="{{ tailor_profile.shop_name }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Shop Address</label>
+              <input type="text" name="address" class="form-control" value="{{ tailor_profile.address }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Latitude <span class="text-muted small">(for map)</span></label>
+              <input type="number" name="latitude" step="0.0001" class="form-control" value="{{ tailor_profile.latitude }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Longitude <span class="text-muted small">(for map)</span></label>
+              <input type="number" name="longitude" step="0.0001" class="form-control" value="{{ tailor_profile.longitude }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Experience (years)</label>
+              <input type="number" name="experience_years" class="form-control" value="{{ tailor_profile.experience_years }}" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Specializations</label>
+              <div class="d-flex flex-wrap gap-2">
+                {% for design in all_designs %}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" name="specializations"
+                         value="{{ design.name }}" id="spec_{{ design.id }}"
+                         {% if design.name in tailor_profile.get_specializations() %}checked{% endif %}>
+                  <label class="form-check-label" for="spec_{{ design.id }}">{{ design.name }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Bio / About</label>
+              <textarea name="bio" class="form-control" rows="3" placeholder="Tell customers about your expertise...">{{ tailor_profile.bio }}</textarea>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-brand mt-4 px-4"><i class="bi bi-save me-2"></i>Save Profile</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="text-center mb-3">
+          <div class="display-4 mb-2">✂️</div>
+          <h5 class="fw-bold">{{ tailor_profile.shop_name }}</h5>
+          <div class="text-muted small">{{ tailor_profile.address }}</div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Rating</span>
+          <span class="fw-semibold"><i class="bi bi-star-fill text-warning"></i> {{ '%.1f'|format(tailor_profile.rating) }} ({{ tailor_profile.rating_count }})</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Experience</span>
+          <span class="fw-semibold">{{ tailor_profile.experience_years }} years</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Total Orders</span>
+          <span class="fw-semibold">{{ tailor_profile.orders.count() }}</span>
+        </div>
+        <div class="mt-3">
+          <div class="text-muted small mb-1">Specializations</div>
+          {% for s in tailor_profile.get_specializations() %}
+          <span class="badge bg-light text-dark me-1">{{ s }}</span>
+          {% else %}
+          <span class="text-muted small">None set</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

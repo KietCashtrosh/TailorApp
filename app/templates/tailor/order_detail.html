@@ -1,0 +1,158 @@
+{% extends "tailor/base.html" %}
+{% block title %}Order {{ order.order_number }}{% endblock %}
+{% block tailor_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('tailor.orders') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="fw-bold mb-0">Order <code>{{ order.order_number }}</code></h4>
+  <span class="badge bg-{{ order.status_badge() }} fs-6">{{ order.status_label() }}</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <!-- Customer & Order Info -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3">Order Information</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="text-muted small">Customer</div>
+            <div class="fw-semibold">{{ order.customer.name }}</div>
+            <div class="small text-muted">{{ order.customer.phone }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Design</div>
+            <div class="fw-semibold">{{ order.design.name }}</div>
+            <div class="small text-muted">Base price: ₹{{ order.design.base_price }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Pickup Address (Fabric)</div>
+            <div>{{ order.pickup_address }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Delivery Address</div>
+            <div>{{ order.delivery_address }}</div>
+          </div>
+          {% if order.fabric_description %}
+          <div class="col-12">
+            <div class="text-muted small">Fabric Description</div>
+            <div class="p-2 bg-light rounded">{{ order.fabric_description }}</div>
+          </div>
+          {% endif %}
+          {% if order.special_instructions %}
+          <div class="col-12">
+            <div class="text-muted small">Special Instructions</div>
+            <div class="p-2 bg-light rounded">{{ order.special_instructions }}</div>
+          </div>
+          {% endif %}
+          <div class="col-md-4">
+            <div class="text-muted small">Estimated Price</div>
+            <div class="fw-semibold">₹{{ order.estimated_price or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Final Price</div>
+            <div class="fw-semibold text-success">₹{{ order.final_price or '—' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Est. Days</div>
+            <div class="fw-semibold">{{ order.estimated_days or '—' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Measurements -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Measurements</div>
+      <div class="card-body">
+        <div class="row g-2">
+          {% for field in design_fields %}
+          <div class="col-6 col-md-4">
+            <div class="text-muted small">{{ field.label }}</div>
+            <div class="fw-semibold">{{ measurements.get(field.key, '—') }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Update Actions -->
+    {% if order.status in ['placed', 'fabric_collected', 'stitching'] %}
+    <div class="card border-0 shadow-sm border-start border-4 border-info">
+      <div class="card-header bg-white fw-semibold py-3">Update Order Status</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('tailor.update_order_status', order_id=order.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="row g-3">
+            {% if order.status == 'placed' %}
+            <div class="col-12">
+              <div class="alert alert-warning mb-3">
+                <strong>New order waiting!</strong> Accept to begin stitching or reject if you cannot take this order.
+              </div>
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">Your Price (₹)</label>
+                  <input type="number" name="final_price" class="form-control" placeholder="e.g. 600">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">Days to Complete</label>
+                  <input type="number" name="estimated_days" class="form-control" placeholder="e.g. 5">
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-semibold">Note for customer</label>
+              <input type="text" name="note" class="form-control" placeholder="Optional message">
+            </div>
+            <div class="col-auto">
+              <button type="submit" name="status" value="accepted" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Accept Order</button>
+            </div>
+            <div class="col-auto">
+              <button type="submit" name="status" value="rejected" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i>Reject</button>
+            </div>
+
+            {% elif order.status == 'fabric_collected' %}
+            <div class="col-12">
+              <div class="alert alert-info mb-3">Fabric has been collected. Start stitching when ready.</div>
+              <label class="form-label small fw-semibold">Note</label>
+              <input type="text" name="note" class="form-control" placeholder="e.g. Started stitching">
+            </div>
+            <div class="col-auto">
+              <button type="submit" name="status" value="stitching" class="btn btn-brand"><i class="bi bi-scissors me-1"></i>Start Stitching</button>
+            </div>
+
+            {% elif order.status == 'stitching' %}
+            <div class="col-12">
+              <div class="alert alert-success mb-3">Mark as ready when stitching is complete.</div>
+              <label class="form-label small fw-semibold">Note</label>
+              <input type="text" name="note" class="form-control" placeholder="e.g. Clothes are ready for pickup">
+            </div>
+            <div class="col-auto">
+              <button type="submit" name="status" value="ready" class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Mark as Ready</button>
+            </div>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <!-- Status Timeline -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2"></i>Status Timeline</div>
+      <div class="card-body">
+        <div class="status-timeline">
+          {% for h in history %}
+          <div class="step done">
+            <div class="fw-semibold small">{{ h.status_label() }}</div>
+            <div class="text-muted" style="font-size:.75rem;">{{ h.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+            {% if h.note %}<div class="text-muted small fst-italic">{{ h.note }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

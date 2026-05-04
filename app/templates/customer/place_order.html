@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block title %}Place Order{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:780px;">
+  <a href="{{ url_for('customer.tailors') }}" class="btn btn-sm btn-outline-secondary mb-4">
+    <i class="bi bi-arrow-left me-1"></i>Back to Tailors
+  </a>
+  <h3 class="fw-bold mb-1">Place an Order</h3>
+  <p class="text-muted mb-4">Our delivery partner will pick up your fabric — and take measurements too if you'd like.</p>
+
+  <form method="POST" action="{{ url_for('customer.place_order') }}" id="orderForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Step 1: Tailor & Design -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <span class="badge bg-primary me-2">1</span><span class="fw-semibold">Select Tailor & Design</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Tailor <span class="text-danger">*</span></label>
+            <select name="tailor_id" class="form-select" required>
+              <option value="">Choose a tailor…</option>
+              {% for t in all_tailors %}
+              <option value="{{ t.id }}" {% if tailor and tailor.id == t.id %}selected{% endif %}>
+                {{ t.shop_name }} — {{ t.address[:35] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Design / Garment <span class="text-danger">*</span></label>
+            <select name="design_id" class="form-select" required id="designSelect">
+              <option value="">Choose a design…</option>
+              {% for d in all_designs %}
+              <option value="{{ d.id }}" data-price="{{ d.base_price }}"
+                {% if design and design.id == d.id %}selected{% endif %}>
+                {{ d.name }} — from ₹{{ d.base_price|int }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12" id="priceHint" style="display:none;">
+            <div class="alert alert-info py-2 mb-0">
+              <i class="bi bi-info-circle me-2"></i>Base price: <strong id="basePrice"></strong>. Final price confirmed by tailor after accepting.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Measurements -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <span class="badge bg-primary me-2">2</span><span class="fw-semibold">Measurements</span>
+      </div>
+      <div class="card-body p-4">
+
+        <!-- Measurement Preference -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">How would you like measurements to be taken?</label>
+          <div class="d-flex flex-column gap-2" id="measurePrefGroup">
+
+            <label class="d-flex align-items-start gap-3 p-3 border rounded-3 cursor-pointer" style="cursor:pointer;" id="opt_delivery">
+              <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="measurement_preference"
+                     value="delivery_will_measure" id="pref_delivery" checked>
+              <div>
+                <div class="fw-semibold"><i class="bi bi-person-badge me-1 text-success"></i>Delivery partner will take measurements</div>
+                <div class="text-muted small">Our agent visits you, takes all measurements on-site and records them. Hassle-free!</div>
+              </div>
+            </label>
+
+            {% if saved_measurements %}
+            <label class="d-flex align-items-start gap-3 p-3 border rounded-3" style="cursor:pointer;" id="opt_saved">
+              <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="measurement_preference"
+                     value="use_saved" id="pref_saved">
+              <div class="flex-grow-1">
+                <div class="fw-semibold"><i class="bi bi-bookmark-check me-1 text-primary"></i>Use my saved measurements</div>
+                <div class="text-muted small">
+                  Last taken by: <strong>{{ saved_measurements.taken_by.name if saved_measurements.taken_by else 'You' }}</strong>
+                  on {{ saved_measurements.updated_at.strftime('%d %b %Y') }}
+                </div>
+                <div class="mt-2 d-flex flex-wrap gap-2" id="savedPreview">
+                  {% for k, v in saved_measurements.get_measurements().items() %}
+                  {% if v %}
+                  <span class="badge bg-light text-dark border">{{ k.replace('_',' ').title() }}: {{ v }}</span>
+                  {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </label>
+            {% endif %}
+
+            <label class="d-flex align-items-start gap-3 p-3 border rounded-3" style="cursor:pointer;" id="opt_self">
+              <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="measurement_preference"
+                     value="provided_by_customer" id="pref_self">
+              <div>
+                <div class="fw-semibold"><i class="bi bi-rulers me-1 text-warning"></i>I'll enter measurements myself</div>
+                <div class="text-muted small">You know your measurements — enter them below.</div>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Manual measurement fields (shown only when self-entry selected) -->
+        <div id="measurementFields" style="display:none;">
+          <hr class="my-3">
+          <p class="text-muted small mb-3"><i class="bi bi-rulers me-1"></i>Enter measurements in inches:</p>
+          <div id="fieldsContainer">
+            {% if design %}
+            <div class="row g-3">
+              {% for field in design.get_measurement_fields() %}
+              <div class="col-6 col-md-4">
+                <label class="form-label fw-semibold small">{{ field.label }}</label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.1" name="measurement_{{ field.key }}"
+                         class="form-control" placeholder="0.0">
+                  <span class="input-group-text">in</span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted small">Select a design above to see measurement fields.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Fabric & Instructions -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <span class="badge bg-primary me-2">3</span><span class="fw-semibold">Fabric & Instructions</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Fabric Description <span class="text-danger">*</span></label>
+            <textarea name="fabric_description" class="form-control" rows="2"
+                      placeholder="e.g. Blue silk saree fabric, 1.5 metres" required></textarea>
+            <div class="form-text">Describe the fabric you are providing (type, colour, quantity).</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Special Instructions</label>
+            <textarea name="special_instructions" class="form-control" rows="2"
+                      placeholder="e.g. Deep back neck, 3/4 sleeves, no lining…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Addresses -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <span class="badge bg-primary me-2">4</span><span class="fw-semibold">Pickup & Delivery Addresses</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-geo-alt-fill text-danger me-1"></i>Pickup Address <span class="text-danger">*</span>
+            </label>
+            <input type="text" name="pickup_address" class="form-control" id="pickupAddr"
+                   placeholder="Address where our agent should collect your fabric" required>
+            <div class="form-text">Our delivery partner will visit here to pick up fabric (and take measurements if chosen).</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-geo-alt-fill text-success me-1"></i>Delivery Address <span class="text-danger">*</span>
+            </label>
+            <input type="text" name="delivery_address" class="form-control" id="deliveryAddr"
+                   placeholder="Address to deliver the finished clothes" required>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="sameAddress">
+              <label class="form-check-label text-muted small" for="sameAddress">
+                Delivery address is the same as pickup address
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-3 justify-content-end">
+      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+      <button type="submit" class="btn btn-brand px-5 fw-semibold">
+        <i class="bi bi-send me-2"></i>Place Order
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const designFields = {};
+{% for d in all_designs %}
+designFields[{{ d.id }}] = {
+  name: {{ d.name | tojson }},
+  price: {{ d.base_price }},
+  fields: {{ d.get_measurement_fields() | tojson }}
+};
+{% endfor %}
+
+function renderMeasurementFields(designId, prefill) {
+  const container = document.getElementById('fieldsContainer');
+  const d = designFields[designId];
+  if (!d || !d.fields.length) {
+    container.innerHTML = '<p class="text-muted small">No measurement fields for this design.</p>';
+    return;
+  }
+  let html = '<div class="row g-3">';
+  d.fields.forEach(f => {
+    const val = (prefill && prefill[f.key]) ? prefill[f.key] : '';
+    html += `<div class="col-6 col-md-4">
+      <label class="form-label fw-semibold small">${f.label}</label>
+      <div class="input-group input-group-sm">
+        <input type="number" step="0.1" name="measurement_${f.key}" class="form-control" placeholder="0.0" value="${val}">
+        <span class="input-group-text">in</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+document.getElementById('designSelect').addEventListener('change', function() {
+  const id = parseInt(this.value);
+  const priceHint = document.getElementById('priceHint');
+  const basePrice = document.getElementById('basePrice');
+  if (!id || !designFields[id]) { priceHint.style.display = 'none'; return; }
+  basePrice.textContent = '₹' + designFields[id].price.toLocaleString('en-IN');
+  priceHint.style.display = 'block';
+  // Re-render measurement fields if self-entry is selected
+  if (document.getElementById('pref_self').checked) renderMeasurementFields(id, null);
+});
+
+function onPrefChange() {
+  const selfSelected = document.getElementById('pref_self').checked;
+  const measurementFields = document.getElementById('measurementFields');
+  measurementFields.style.display = selfSelected ? 'block' : 'none';
+  if (selfSelected) {
+    const designId = parseInt(document.getElementById('designSelect').value);
+    if (designId) renderMeasurementFields(designId, null);
+  }
+  // Highlight selected option
+  ['opt_delivery', 'opt_saved', 'opt_self'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('border-primary', 'bg-light');
+  });
+  const activeInput = document.querySelector('input[name="measurement_preference"]:checked');
+  if (activeInput) {
+    const parent = activeInput.closest('label');
+    if (parent) parent.classList.add('border-primary', 'bg-light');
+  }
+}
+
+document.querySelectorAll('input[name="measurement_preference"]').forEach(r => {
+  r.addEventListener('change', onPrefChange);
+});
+
+document.getElementById('sameAddress').addEventListener('change', function() {
+  const delivery = document.getElementById('deliveryAddr');
+  delivery.value = this.checked ? document.getElementById('pickupAddr').value : '';
+  delivery.readOnly = this.checked;
+});
+document.getElementById('pickupAddr').addEventListener('input', function() {
+  if (document.getElementById('sameAddress').checked) {
+    document.getElementById('deliveryAddr').value = this.value;
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('designSelect');
+  if (sel.value) sel.dispatchEvent(new Event('change'));
+  onPrefChange();
+});
+</script>
+{% endblock %}
