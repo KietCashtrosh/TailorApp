@@ -1,0 +1,191 @@
+/* Google Fonts: Outfit */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Purple & Orange Theme */
+  --brand-purple: #6d28d9; /* Deep Purple */
+  --brand-purple-dark: #4c1d95;
+  --brand-purple-light: #f5f3ff;
+  
+  --brand-orange: #ea580c; /* Vibrant Orange */
+  --brand-orange-light: #fff7ed;
+  
+  --bg-color: #fafaf9;
+  --text-dark: #1c1917;
+  --text-muted: #78716c;
+  
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+}
+
+/* Brand Utilities */
+.text-brand-purple { color: var(--brand-purple) !important; }
+.text-brand-orange { color: var(--brand-orange) !important; }
+.bg-brand-purple { background-color: var(--brand-purple) !important; color: white; }
+.bg-brand-orange { background-color: var(--brand-orange) !important; color: white; }
+
+.btn-brand-purple {
+  background-color: var(--brand-purple);
+  color: #fff;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(109, 40, 217, 0.2);
+}
+.btn-brand-purple:hover {
+  background-color: var(--brand-purple-dark);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.3);
+}
+
+.btn-brand-orange {
+  background-color: var(--brand-orange);
+  color: #fff;
+  border: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2);
+}
+.btn-brand-orange:hover {
+  background-color: #c2410c;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.3);
+}
+
+/* Custom Navbar */
+.navbar-custom {
+  background: rgba(76, 29, 149, 0.95) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.navbar-brand {
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.5px;
+}
+.navbar-brand span {
+  color: var(--brand-orange);
+}
+
+/* Glassmorphism Cards */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* Stat Cards (Dashboard) */
+.stat-card {
+  border: none;
+  border-radius: 16px;
+  padding: 1.5rem;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.08);
+}
+
+/* Sidebar Navigation */
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 2px 0 20px rgba(0,0,0,0.02);
+}
+.sidebar .nav-link {
+  color: var(--text-muted);
+  border-radius: 10px;
+  margin-bottom: 4px;
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.2s ease;
+}
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+  background: var(--brand-purple-light);
+  color: var(--brand-purple);
+}
+.sidebar .nav-link i {
+  width: 24px;
+  font-size: 1.1rem;
+}
+
+/* Status Timeline */
+.status-timeline {
+  position: relative;
+  padding-left: 32px;
+}
+.status-timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e7e5e4;
+}
+.status-timeline .step {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+.status-timeline .step::before {
+  content: '';
+  position: absolute;
+  left: -27px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e7e5e4;
+  border: 2px solid #fff;
+  transition: all 0.3s;
+}
+.status-timeline .step.done::before {
+  background: #10b981; /* Green */
+}
+.status-timeline .step.active::before {
+  background: var(--brand-orange);
+  box-shadow: 0 0 0 4px var(--brand-orange-light);
+}
+
+/* Table Enhancements */
+.table-custom {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.table-custom thead {
+  background-color: var(--brand-purple-light);
+  color: var(--brand-purple-dark);
+}
+.table-custom th {
+  font-weight: 600;
+  border-bottom: none;
+  padding: 1rem;
+}
+.table-custom td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f5f5f4;
+}
+
+/* Form Controls */
+.form-control:focus, .form-select:focus {
+  border-color: var(--brand-purple);
+  box-shadow: 0 0 0 0.25rem rgba(109, 40, 217, 0.15);
+}

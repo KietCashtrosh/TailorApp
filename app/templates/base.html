@@ -7,38 +7,13 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <style>
-    :root {
-      --brand: #4f46e5;
-      --brand-dark: #3730a3;
-      --brand-light: #eef2ff;
-    }
-    body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; }
-    .navbar-brand { font-weight: 700; font-size: 1.4rem; letter-spacing: -0.5px; }
-    .navbar-brand span { color: var(--brand); }
-    .btn-brand { background: var(--brand); color: #fff; border: none; }
-    .btn-brand:hover { background: var(--brand-dark); color: #fff; }
-    .sidebar { width: 240px; min-height: 100vh; background: #1e1b4b; }
-    .sidebar .nav-link { color: #c7d2fe; border-radius: 8px; margin-bottom: 2px; }
-    .sidebar .nav-link:hover, .sidebar .nav-link.active { background: var(--brand); color: #fff; }
-    .sidebar .nav-link i { width: 22px; }
-    .main-content { flex: 1; padding: 1.5rem; }
-    .stat-card { border: none; border-radius: 12px; padding: 1.25rem 1.5rem; }
-    .status-timeline { position: relative; padding-left: 28px; }
-    .status-timeline::before { content: ''; position: absolute; left: 9px; top: 0; bottom: 0; width: 2px; background: #dee2e6; }
-    .status-timeline .step { position: relative; margin-bottom: 1rem; }
-    .status-timeline .step::before { content: ''; position: absolute; left: -23px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #dee2e6; border: 2px solid #fff; }
-    .status-timeline .step.done::before { background: #198754; }
-    .status-timeline .step.active::before { background: var(--brand); box-shadow: 0 0 0 3px #c7d2fe; }
-    .tailor-card:hover { box-shadow: 0 8px 25px rgba(79,70,229,.15); transform: translateY(-2px); transition: all .2s; }
-    .badge-status { font-size: .75rem; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 {% block body %}
 
-<nav class="navbar navbar-expand-lg navbar-dark" style="background:#1e1b4b;">
+<nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm sticky-top">
   <div class="container-fluid px-4">
     <a class="navbar-brand text-white" href="{{ url_for('customer.home') }}">
       <i class="bi bi-scissors me-1"></i>Tailor<span>App</span>
@@ -71,7 +46,7 @@
           </li>
         {% else %}
           <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('auth.login') }}">Login</a></li>
-          <li class="nav-item"><a class="btn btn-brand ms-2 px-3" href="{{ url_for('auth.register') }}">Register</a></li>
+          <li class="nav-item"><a class="btn btn-brand-orange ms-2 px-3 rounded-pill" href="{{ url_for('auth.register') }}">Register</a></li>
         {% endif %}
       </ul>
     </div>

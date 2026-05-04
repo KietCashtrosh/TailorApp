@@ -2,10 +2,12 @@
 {% block title %}Find Tailors Near You{% endblock %}
 {% block extra_head %}
 <style>
-  .hero { background: linear-gradient(135deg,#1e1b4b 0%,#4f46e5 60%,#818cf8 100%); }
-  .design-card { cursor: pointer; border-radius: 16px; transition: all .2s; border: 2px solid transparent; }
-  .design-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(79,70,229,.2); border-color: var(--brand); }
-  .design-icon { font-size: 3rem; }
+  .hero { background: linear-gradient(135deg, var(--brand-purple-dark) 0%, var(--brand-purple) 60%, #9333ea 100%); position: relative; overflow: hidden; }
+  .hero::after { content: ''; position: absolute; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(234,88,12,0.3) 0%, transparent 70%); border-radius: 50%; pointer-events: none; }
+  .design-card { cursor: pointer; border-radius: 16px; transition: all .3s ease; border: 2px solid transparent; }
+  .design-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(109, 40, 217, 0.15); border-color: var(--brand-orange); }
+  .design-icon { font-size: 3.5rem; transition: transform 0.3s ease; }
+  .design-card:hover .design-icon { transform: scale(1.1); }
 </style>
 {% endblock %}
 {% block content %}
@@ -22,9 +24,9 @@
             <i class="bi bi-search me-2"></i>Find Tailors
           </a>
           {% if not current_user.is_authenticated %}
-          <a href="{{ url_for('auth.register') }}" class="btn btn-outline-light fw-semibold px-4 py-2">Get Started</a>
+          <a href="{{ url_for('auth.register') }}" class="btn btn-brand-orange fw-semibold px-4 py-2 rounded-pill shadow-sm">Get Started</a>
           {% else %}
-          <a href="{{ url_for('customer.place_order') }}" class="btn btn-outline-light fw-semibold px-4 py-2">
+          <a href="{{ url_for('customer.place_order') }}" class="btn btn-brand-orange fw-semibold px-4 py-2 rounded-pill shadow-sm">
             <i class="bi bi-plus-circle me-2"></i>Place Order
           </a>
           {% endif %}
@@ -80,7 +82,7 @@
             </div>
             <div class="fw-bold">{{ design.name }}</div>
             <div class="text-muted small mb-2">{{ design.description }}</div>
-            <div class="text-primary fw-semibold">from ₹{{ design.base_price|int }}</div>
+            <div class="text-brand-orange fw-bold fs-5">from ₹{{ design.base_price|int }}</div>
           </div>
         </a>
       </div>
@@ -97,7 +99,7 @@
         <h2 class="fw-bold mb-1">Featured Tailors</h2>
         <p class="text-muted mb-0">Verified, skilled, and ready to stitch</p>
       </div>
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-primary">View All</a>
+      <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-purple rounded-pill px-4">View All</a>
     </div>
     <div class="row g-3">
       {% for t in featured_tailors %}
@@ -105,7 +107,7 @@
         <div class="card border-0 shadow-sm tailor-card h-100">
           <div class="card-body p-4">
             <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:50px;height:50px;font-size:1.3rem;">
+              <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold" style="width:50px;height:50px;font-size:1.3rem;">
                 {{ t.shop_name[0] }}
               </div>
               <div>
@@ -122,7 +124,7 @@
               <span class="badge bg-light text-dark me-1 mb-1">{{ spec }}</span>
               {% endfor %}
             </div>
-            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}" class="btn btn-brand w-100 btn-sm">
+            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}" class="btn btn-brand-purple w-100 rounded-pill mt-2">
               View & Order
             </a>
           </div>

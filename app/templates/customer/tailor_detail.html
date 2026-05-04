@@ -11,7 +11,7 @@
     <div class="card-body p-4">
       <div class="row align-items-center g-3">
         <div class="col-auto">
-          <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center text-primary fw-bold" style="width:80px;height:80px;font-size:2rem;">
+          <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold" style="width:80px;height:80px;font-size:2rem;">
             {{ tailor.shop_name[0] }}
           </div>
         </div>
@@ -25,11 +25,11 @@
         </div>
         <div class="col-auto">
           {% if current_user.is_authenticated and current_user.role == 'customer' %}
-          <a href="{{ url_for('customer.place_order', tailor_id=tailor.id) }}" class="btn btn-brand px-4">
+          <a href="{{ url_for('customer.place_order', tailor_id=tailor.id) }}" class="btn btn-brand-orange px-4 rounded-pill shadow-sm">
             <i class="bi bi-scissors me-2"></i>Place Order
           </a>
           {% else %}
-          <a href="{{ url_for('auth.login') }}" class="btn btn-brand px-4">Login to Order</a>
+          <a href="{{ url_for('auth.login') }}" class="btn btn-brand-orange px-4 rounded-pill shadow-sm">Login to Order</a>
           {% endif %}
         </div>
       </div>
@@ -65,9 +65,9 @@
               </div>
             </div>
             <div class="text-end">
-              <div class="text-primary fw-bold">from ₹{{ design.base_price|int }}</div>
+              <div class="text-brand-orange fw-bold fs-5">from ₹{{ design.base_price|int }}</div>
               {% if current_user.is_authenticated and current_user.role == 'customer' %}
-              <a href="{{ url_for('customer.place_order', tailor_id=tailor.id, design_id=design.id) }}" class="btn btn-sm btn-outline-primary mt-1">Order</a>
+              <a href="{{ url_for('customer.place_order', tailor_id=tailor.id, design_id=design.id) }}" class="btn btn-sm btn-brand-purple rounded-pill mt-1 px-3">Order</a>
               {% endif %}
             </div>
           </div>

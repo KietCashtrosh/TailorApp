@@ -1,13 +1,13 @@
 {% extends "admin/base.html" %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block admin_content %}
-<h4 class="fw-bold mb-4"><i class="bi bi-speedometer2 me-2 text-primary"></i>Admin Dashboard</h4>
+<h4 class="fw-bold mb-4"><i class="bi bi-speedometer2 me-2 text-brand-purple"></i>Admin Dashboard</h4>
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">
     <div class="stat-card bg-white shadow-sm">
       <div class="text-muted small mb-1">Total Orders</div>
-      <div class="fs-2 fw-bold text-primary">{{ stats.total_orders }}</div>
+      <div class="fs-2 fw-bold text-brand-purple">{{ stats.total_orders }}</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
@@ -25,7 +25,7 @@
   <div class="col-6 col-lg-3">
     <div class="stat-card bg-white shadow-sm">
       <div class="text-muted small mb-1">Active Tailors</div>
-      <div class="fs-2 fw-bold" style="color:var(--brand);">{{ stats.total_tailors }}</div>
+      <div class="fs-2 fw-bold" style="color:var(--brand-orange);">{{ stats.total_tailors }}</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
@@ -47,10 +47,10 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
     <span><i class="bi bi-clock-history me-2"></i>Recent Orders</span>
-    <a href="{{ url_for('admin.orders') }}" class="btn btn-sm btn-outline-primary">View All</a>
+    <a href="{{ url_for('admin.orders') }}" class="btn btn-sm btn-brand-purple rounded-pill px-3">View All</a>
   </div>
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-custom table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
           <th>Order #</th><th>Customer</th><th>Tailor</th><th>Design</th><th>Status</th><th>Date</th><th></th>
