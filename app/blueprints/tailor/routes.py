@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from functools import wraps
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
@@ -115,6 +116,7 @@ def update_order_status(order_id):
         return redirect(url_for('tailor.order_detail', order_id=order_id))
 
     if new_status == 'accepted':
+        order.accepted_at = datetime.utcnow()
         if estimated_days:
             order.estimated_days = estimated_days
         if final_price:

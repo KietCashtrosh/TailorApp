@@ -12,7 +12,7 @@ def init_db():
 
     if not User.query.filter_by(email='admin@tailorapp.com').first():
         admin = User(name='Super Admin', email='admin@tailorapp.com',
-                     phone='9000000000', role='admin')
+                     phone='9000000000', role='admin', approval_status='approved')
         admin.set_password('admin123')
         db.session.add(admin)
         print('Admin user created: admin@tailorapp.com / admin123')
@@ -82,7 +82,7 @@ def init_db():
 
     if not User.query.filter_by(email='tailor1@tailorapp.com').first():
         t_user = User(name='Ravi Kumar', email='tailor1@tailorapp.com',
-                      phone='9111111111', role='tailor')
+                      phone='9111111111', role='tailor', approval_status='approved')
         t_user.set_password('tailor123')
         db.session.add(t_user)
         db.session.flush()
@@ -101,14 +101,14 @@ def init_db():
 
     if not User.query.filter_by(email='delivery1@tailorapp.com').first():
         d_user = User(name='Arjun Singh', email='delivery1@tailorapp.com',
-                      phone='9222222222', role='delivery')
+                      phone='9222222222', role='delivery', approval_status='approved')
         d_user.set_password('delivery123')
         db.session.add(d_user)
         print('Demo delivery agent created: delivery1@tailorapp.com / delivery123')
 
     if not User.query.filter_by(email='customer1@tailorapp.com').first():
         c_user = User(name='Priya Sharma', email='customer1@tailorapp.com',
-                      phone='9333333333', role='customer')
+                      phone='9333333333', role='customer', approval_status='approved')
         c_user.set_password('customer123')
         db.session.add(c_user)
         print('Demo customer created: customer1@tailorapp.com / customer123')

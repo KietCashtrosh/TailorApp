@@ -1,0 +1,28 @@
+@"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+venv/
+myenv/
+.venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# Environment secrets
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude worktrees
+.claude/
+"@ | Out-File -Encoding utf8 .gitignore

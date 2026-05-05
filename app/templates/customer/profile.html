@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:700px;">
+  <h3 class="fw-bold mb-1"><i class="bi bi-person-circle me-2 text-brand-purple"></i>My Profile</h3>
+  <p class="text-muted mb-4">Manage your info and save default addresses to speed up ordering.</p>
+
+  <form method="POST" action="{{ url_for('customer.profile') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Personal Info -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-person me-2"></i>Personal Information</div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Full Name</label>
+            <input type="text" name="name" class="form-control" value="{{ current_user.name }}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Phone</label>
+            <input type="tel" name="phone" class="form-control" value="{{ current_user.phone }}" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Email</label>
+            <input type="email" class="form-control bg-light" value="{{ current_user.email }}" disabled>
+            <div class="form-text">Email cannot be changed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Saved Addresses -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-geo-alt me-2"></i>Saved Addresses
+        <span class="text-muted fw-normal small ms-2">Pre-filled automatically when placing orders</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-geo-alt-fill text-danger me-1"></i>Default Pickup Address
+            </label>
+            <input type="text" name="default_pickup_address" class="form-control"
+                   value="{{ current_user.default_pickup_address or '' }}"
+                   placeholder="Where our agent should collect your fabric">
+            <div class="form-text">This is where the delivery agent picks up your fabric.</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-geo-alt-fill text-success me-1"></i>Default Delivery Address
+            </label>
+            <input type="text" name="default_delivery_address" class="form-control"
+                   value="{{ current_user.default_delivery_address or '' }}"
+                   placeholder="Where to deliver the finished clothes">
+            <div class="form-text">Your finished clothes will be delivered here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-3 justify-content-end">
+      <a href="{{ url_for('customer.home') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+      <button type="submit" class="btn btn-brand-purple px-5 fw-semibold rounded-pill">
+        <i class="bi bi-check-lg me-2"></i>Save Profile
+      </button>
+    </div>
+  </form>
+
+  <!-- Quick Links -->
+  <div class="row g-3 mt-2">
+    <div class="col-md-6">
+      <a href="{{ url_for('customer.my_measurements') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+        <div class="card-body p-4 d-flex align-items-center gap-3">
+          <i class="bi bi-rulers fs-2 text-brand-purple"></i>
+          <div>
+            <div class="fw-semibold">My Measurements</div>
+            <div class="text-muted small">View saved measurements per design</div>
+          </div>
+          <i class="bi bi-chevron-right ms-auto text-muted"></i>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a href="{{ url_for('customer.my_orders') }}" class="card border-0 shadow-sm text-decoration-none h-100">
+        <div class="card-body p-4 d-flex align-items-center gap-3">
+          <i class="bi bi-receipt fs-2 text-brand-orange"></i>
+          <div>
+            <div class="fw-semibold">My Orders</div>
+            <div class="text-muted small">Track all your orders</div>
+          </div>
+          <i class="bi bi-chevron-right ms-auto text-muted"></i>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -17,6 +17,10 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256))
     role = db.Column(db.String(20), nullable=False)  # admin | tailor | delivery | customer
     is_active = db.Column(db.Boolean, default=True)
+    # approved | pending | rejected  (customers/admin auto-approved; tailors/delivery start pending)
+    approval_status = db.Column(db.String(20), default='approved')
+    default_pickup_address = db.Column(db.Text, default='')
+    default_delivery_address = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     tailor_profile = db.relationship('TailorProfile', backref='user', uselist=False)
@@ -241,6 +245,9 @@ class Order(db.Model):
     discount_amount = db.Column(db.Float, default=0)
     coupon_code = db.Column(db.String(30), default='')
     estimated_days = db.Column(db.Integer)
+    payment_method = db.Column(db.String(20), default='cod')   # cod | online | cash
+    payment_status = db.Column(db.String(20), default='unpaid') # unpaid | paid | cod_pending
+    accepted_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -266,6 +273,22 @@ class Order(db.Model):
     def payable_amount(self):
         base = self.final_price or self.estimated_price or 0
         return max(0, base - (self.discount_amount or 0))
+
+    def eta_date(self):
+        from datetime import timedelta
+        if self.accepted_at and self.estimated_days:
+            return (self.accepted_at + timedelta(days=self.estimated_days)).strftime('%d %B %Y')
+        return None
+
+    def payment_status_label(self):
+        return {'unpaid': 'Unpaid', 'paid': 'Paid', 'cod_pending': 'Cash on Delivery'}.get(
+            self.payment_status, self.payment_status
+        )
+
+    def payment_method_label(self):
+        return {'cod': 'Cash on Delivery', 'online': 'Online Payment', 'cash': 'Cash'}.get(
+            self.payment_method, self.payment_method
+        )
 
     def status_label(self):
         return STATUS_LABELS.get(self.status, self.status)
