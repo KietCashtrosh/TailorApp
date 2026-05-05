@@ -4,12 +4,8 @@
 <h4 class="fw-bold mb-1">Hi, {{ current_user.name }} <i class="bi bi-truck text-success"></i></h4>
 <p class="text-muted mb-4">Your delivery assignments for today</p>
 
-<div id="stats-row" class="row g-3 mb-4"
-     hx-get="{{ url_for('delivery.dashboard') }}"
-     hx-trigger="every 12s"
-     hx-target="#stats-row"
-     hx-select="#stats-row"
-     hx-swap="outerHTML">
+<div id="stats-row" class="row g-3 mb-4" hx-get="{{ url_for('delivery.dashboard') }}" hx-trigger="every 12s"
+  hx-target="#stats-row" hx-select="#stats-row" hx-swap="outerHTML">
   <div class="col-6 col-md-3">
     <div class="stat-card bg-white shadow-sm border-start border-4 border-warning">
       <div class="text-muted small">Active</div>
@@ -33,11 +29,12 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge {% if a.assignment_type == 'pickup_fabric' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+            <span
+              class="badge {% if a.assignment_type == 'pickup_fabric' %}bg-warning text-dark{% else %}bg-success{% endif %}">
               {% if a.assignment_type == 'pickup_fabric' %}
-                <i class="bi bi-box-arrow-in-down-left me-1"></i>Pickup Fabric
+              <i class="bi bi-box-arrow-in-down-left me-1"></i>Pickup Fabric
               {% else %}
-                <i class="bi bi-box-arrow-up-right me-1"></i>Deliver Clothes
+              <i class="bi bi-box-arrow-up-right me-1"></i>Deliver Clothes
               {% endif %}
             </span>
             <span class="badge {% if a.status == 'picked_up' %}bg-info{% else %}bg-secondary{% endif %}">
@@ -52,7 +49,8 @@
             <i class="bi bi-geo-alt-fill text-success me-1"></i><strong>To:</strong> {{ a.dropoff_address }}
           </div>
         </div>
-        <a href="{{ url_for('delivery.assignment_detail', assignment_id=a.id) }}" class="btn btn-sm btn-brand-orange ms-3 rounded-pill px-3">
+        <a href="{{ url_for('delivery.assignment_detail', assignment_id=a.id) }}"
+          class="btn btn-sm btn-brand-orange ms-3 rounded-pill px-3">
           View
         </a>
       </div>
@@ -67,6 +65,4 @@
   <p class="text-muted">No active assignments right now.</p>
 </div>
 {% endif %}
-{% endblock %}
-
 {% endblock %}

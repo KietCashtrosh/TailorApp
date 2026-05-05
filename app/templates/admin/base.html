@@ -1,45 +1,125 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="d-flex" style="min-height:100vh;">
-  <nav class="sidebar d-flex flex-column p-3" style="position:sticky;top:0;height:100vh;overflow-y:auto;">
-    <a href="{{ url_for('customer.home') }}" class="text-brand-purple text-decoration-none mb-4 d-block">
-      <span style="font-size:1.3rem;font-weight:800;"><i class="bi bi-scissors me-2 text-brand-orange"></i>TailorApp</span>
-      <div class="badge bg-brand-purple text-white mt-1">Admin</div>
+
+<!-- Sidebar overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- Mobile topbar -->
+<div class="portal-topbar">
+  <button class="sidebar-toggle" onclick="openSidebar()" aria-label="Open menu">
+    <i class="bi bi-list"></i>
+  </button>
+  <a href="{{ url_for('customer.home') }}" class="text-decoration-none d-flex align-items-center gap-2">
+    <span class="brand-name"><i class="bi bi-scissors me-1 text-brand-orange"></i>TailorApp</span>
+    <span class="badge bg-brand-purple portal-badge">Admin</span>
+  </a>
+</div>
+
+<div class="portal-layout">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="portalSidebar">
+    <!-- Close button (mobile) -->
+    <button class="d-lg-none btn btn-sm btn-outline-secondary mb-3 align-self-end"
+            onclick="closeSidebar()" style="font-size:.8rem;">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <a href="{{ url_for('customer.home') }}" class="text-brand-purple text-decoration-none mb-4 d-block px-2">
+      <span style="font-size:1.25rem;font-weight:800;">
+        <i class="bi bi-scissors me-2 text-brand-orange"></i>TailorApp
+      </span>
+      <div class="badge bg-brand-purple mt-1">Admin Panel</div>
     </a>
+
     <ul class="nav flex-column gap-1 flex-grow-1">
-      <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.dashboard' %}active{% endif %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
-      <li><a href="{{ url_for('admin.orders') }}" class="nav-link px-3 py-2 {% if 'admin.order' in request.endpoint %}active{% endif %}"><i class="bi bi-receipt me-2"></i>Orders</a></li>
-      <li><a href="{{ url_for('admin.analytics') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.analytics' %}active{% endif %}"><i class="bi bi-bar-chart-line me-2"></i>Analytics</a></li>
-      <li class="mt-2"><div class="text-muted px-3 py-1" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Catalogue</div></li>
-      <li><a href="{{ url_for('admin.designs') }}" class="nav-link px-3 py-2 {% if 'admin.design' in request.endpoint %}active{% endif %}"><i class="bi bi-grid me-2"></i>Designs & Pricing</a></li>
-      <li><a href="{{ url_for('admin.coupons') }}" class="nav-link px-3 py-2 {% if 'admin.coupon' in request.endpoint %}active{% endif %}"><i class="bi bi-tag me-2"></i>Coupons</a></li>
-      <li class="mt-2"><div class="text-muted px-3 py-1" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">People</div></li>
-      <li><a href="{{ url_for('admin.tailors') }}" class="nav-link px-3 py-2 {% if request.endpoint in ['admin.tailors','admin.add_tailor','admin.tailor_offers'] %}active{% endif %}"><i class="bi bi-scissors me-2"></i>Tailors & Offers</a></li>
-      <li><a href="{{ url_for('admin.users') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.users' %}active{% endif %}"><i class="bi bi-people me-2"></i>Users</a></li>
-      <li><a href="{{ url_for('admin.add_delivery_agent') }}" class="nav-link px-3 py-2"><i class="bi bi-person-plus me-2"></i>Add Agent</a></li>
+      <li><a href="{{ url_for('admin.dashboard') }}"
+             class="nav-link {% if request.endpoint=='admin.dashboard' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i>Dashboard
+      </a></li>
+      <li><a href="{{ url_for('admin.orders') }}"
+             class="nav-link {% if 'admin.order' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-receipt"></i>Orders
+      </a></li>
+      <li><a href="{{ url_for('admin.analytics') }}"
+             class="nav-link {% if request.endpoint=='admin.analytics' %}active{% endif %}">
+        <i class="bi bi-bar-chart-line"></i>Analytics
+      </a></li>
+
+      <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">Catalogue</li>
+      <li><a href="{{ url_for('admin.designs') }}"
+             class="nav-link {% if 'admin.design' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-grid"></i>Designs & Pricing
+      </a></li>
+      <li><a href="{{ url_for('admin.coupons') }}"
+             class="nav-link {% if 'admin.coupon' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-tag"></i>Coupons
+      </a></li>
+
+      <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">People</li>
+      <li><a href="{{ url_for('admin.tailors') }}"
+             class="nav-link {% if request.endpoint in ['admin.tailors','admin.add_tailor','admin.tailor_offers'] %}active{% endif %}">
+        <i class="bi bi-scissors"></i>Tailors &amp; Offers
+      </a></li>
+      <li><a href="{{ url_for('admin.users') }}"
+             class="nav-link {% if request.endpoint=='admin.users' %}active{% endif %}">
+        <i class="bi bi-people"></i>Users
+      </a></li>
+      <li><a href="{{ url_for('admin.add_delivery_agent') }}" class="nav-link">
+        <i class="bi bi-person-plus"></i>Add Agent
+      </a></li>
       <li>
-        <a href="{{ url_for('admin.approvals') }}" class="nav-link px-3 py-2 d-flex justify-content-between align-items-center {% if request.endpoint=='admin.approvals' %}active{% endif %}">
+        <a href="{{ url_for('admin.approvals') }}"
+           class="nav-link d-flex justify-content-between align-items-center {% if request.endpoint=='admin.approvals' %}active{% endif %}">
           <span><i class="bi bi-person-check me-2"></i>Approvals</span>
-          {% set pending_count = pending_approvals_count %}
-          {% if pending_count is defined and pending_count > 0 %}
-          <span class="badge bg-warning text-dark">{{ pending_count }}</span>
+          {% if pending_approvals_count is defined and pending_approvals_count > 0 %}
+          <span class="badge bg-warning text-dark">{{ pending_approvals_count }}</span>
           {% endif %}
         </a>
       </li>
-      <li><a href="{{ url_for('admin.reviews') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.reviews' %}active{% endif %}"><i class="bi bi-star me-2"></i>Reviews</a></li>
+      <li><a href="{{ url_for('admin.reviews') }}"
+             class="nav-link {% if request.endpoint=='admin.reviews' %}active{% endif %}">
+        <i class="bi bi-star"></i>Reviews
+      </a></li>
     </ul>
-    <div class="mt-auto pt-3 border-top">
-      <div class="text-muted small mb-2"><i class="bi bi-person-circle me-1"></i>{{ current_user.name }}</div>
-      <a href="{{ url_for('auth.logout') }}" class="nav-link px-3 py-2 text-danger"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+
+    <div class="mt-auto pt-3 border-top px-2">
+      <div class="text-muted small mb-2">
+        <i class="bi bi-person-circle me-1"></i>{{ current_user.name }}
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
+        <i class="bi bi-box-arrow-right"></i>Logout
+      </a>
     </div>
   </nav>
-  <div class="main-content bg-light flex-grow-1">
+
+  <!-- Main content -->
+  <div class="main-content">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for cat, msg in messages %}
-        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3">{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3 rounded-3" role="alert">
+          {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
       {% endfor %}{% endif %}
     {% endwith %}
     {% block admin_content %}{% endblock %}
   </div>
 </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function openSidebar() {
+  document.getElementById('portalSidebar').classList.add('sidebar-open');
+  document.getElementById('sidebarOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('portalSidebar').classList.remove('sidebar-open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+// Close on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+</script>
 {% endblock %}

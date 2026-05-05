@@ -1,49 +1,83 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="d-flex" style="min-height:100vh;">
-  <nav class="sidebar d-flex flex-column p-3" style="position:sticky;top:0;height:100vh;overflow-y:auto;">
-    <a href="{{ url_for('customer.home') }}" class="text-brand-purple text-decoration-none mb-4 d-block">
-      <span style="font-size:1.3rem;font-weight:800;"><i class="bi bi-scissors me-2 text-brand-orange"></i>TailorApp</span>
-      <div class="badge bg-brand-orange text-white mt-1">Tailor Portal</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="portal-topbar">
+  <button class="sidebar-toggle" onclick="openSidebar()" aria-label="Open menu">
+    <i class="bi bi-list"></i>
+  </button>
+  <a href="{{ url_for('customer.home') }}" class="text-decoration-none d-flex align-items-center gap-2">
+    <span class="brand-name"><i class="bi bi-scissors me-1 text-brand-orange"></i>TailorApp</span>
+    <span class="badge bg-brand-orange portal-badge">Tailor</span>
+  </a>
+  {% if unread_notif_count and unread_notif_count > 0 %}
+  <a href="{{ url_for('tailor.my_notifications') }}" class="ms-auto position-relative text-brand-purple">
+    <i class="bi bi-bell-fill fs-5"></i>
+    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.55rem;">{{ unread_notif_count }}</span>
+  </a>
+  {% endif %}
+</div>
+
+<div class="portal-layout">
+  <nav class="sidebar" id="portalSidebar">
+    <button class="d-lg-none btn btn-sm btn-outline-secondary mb-3 align-self-end"
+            onclick="closeSidebar()" style="font-size:.8rem;">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <a href="{{ url_for('customer.home') }}" class="text-brand-purple text-decoration-none mb-4 d-block px-2">
+      <span style="font-size:1.25rem;font-weight:800;">
+        <i class="bi bi-scissors me-2 text-brand-orange"></i>TailorApp
+      </span>
+      <div class="badge bg-brand-orange mt-1">Tailor Portal</div>
     </a>
+
     <ul class="nav flex-column gap-1 flex-grow-1">
-      <li class="nav-item">
-        <a href="{{ url_for('tailor.dashboard') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'tailor.dashboard' %}active{% endif %}">
-          <i class="bi bi-speedometer2 me-2"></i>Dashboard
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="{{ url_for('tailor.orders') }}" class="nav-link px-3 py-2 {% if 'tailor.order' in request.endpoint %}active{% endif %}">
-          <i class="bi bi-receipt me-2"></i>My Orders
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="{{ url_for('tailor.orders', status='placed') }}" class="nav-link px-3 py-2">
-          <i class="bi bi-bell me-2"></i>New Requests
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="{{ url_for('tailor.measurement_templates') }}" class="nav-link px-3 py-2 {% if 'measurement_template' in request.endpoint %}active{% endif %}">
-          <i class="bi bi-rulers me-2"></i>Measurement Templates
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="{{ url_for('tailor.profile') }}" class="nav-link px-3 py-2 {% if request.endpoint == 'tailor.profile' %}active{% endif %}">
-          <i class="bi bi-person-gear me-2"></i>My Profile
+      <li><a href="{{ url_for('tailor.dashboard') }}"
+             class="nav-link {% if request.endpoint=='tailor.dashboard' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i>Dashboard
+      </a></li>
+      <li><a href="{{ url_for('tailor.orders') }}"
+             class="nav-link {% if 'tailor.order' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-receipt"></i>My Orders
+      </a></li>
+      <li><a href="{{ url_for('tailor.orders', status='placed') }}" class="nav-link">
+        <i class="bi bi-bell"></i>New Requests
+      </a></li>
+      <li><a href="{{ url_for('tailor.measurement_templates') }}"
+             class="nav-link {% if 'measurement_template' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-rulers"></i>Measurements
+      </a></li>
+      <li><a href="{{ url_for('tailor.profile') }}"
+             class="nav-link {% if request.endpoint=='tailor.profile' %}active{% endif %}">
+        <i class="bi bi-person-gear"></i>My Profile
+      </a></li>
+      <li>
+        <a href="{{ url_for('tailor.my_notifications') }}"
+           class="nav-link d-flex justify-content-between align-items-center {% if request.endpoint=='tailor.my_notifications' %}active{% endif %}">
+          <span><i class="bi bi-bell me-2"></i>Notifications</span>
+          {% if unread_notif_count and unread_notif_count > 0 %}
+          <span class="badge bg-danger rounded-pill">{{ unread_notif_count }}</span>
+          {% endif %}
         </a>
       </li>
     </ul>
-    <div class="mt-auto pt-3 border-top">
-      <div class="text-muted small mb-2"><i class="bi bi-person-circle me-1"></i>{{ current_user.name }}</div>
-      <a href="{{ url_for('auth.logout') }}" class="nav-link px-3 py-2 text-danger">
-        <i class="bi bi-box-arrow-right me-2"></i>Logout
+
+    <div class="mt-auto pt-3 border-top px-2">
+      <div class="text-muted small mb-2">
+        <i class="bi bi-person-circle me-1"></i>{{ current_user.name }}
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
+        <i class="bi bi-box-arrow-right"></i>Logout
       </a>
     </div>
   </nav>
-  <div class="main-content bg-light flex-grow-1">
+
+  <div class="main-content">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for cat, msg in messages %}
-        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3">
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3 rounded-3" role="alert">
           {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
       {% endfor %}{% endif %}
@@ -51,4 +85,21 @@
     {% block tailor_content %}{% endblock %}
   </div>
 </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function openSidebar() {
+  document.getElementById('portalSidebar').classList.add('sidebar-open');
+  document.getElementById('sidebarOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('portalSidebar').classList.remove('sidebar-open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+</script>
 {% endblock %}
