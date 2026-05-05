@@ -65,10 +65,13 @@ def notifications():
 @admin_required
 def orders():
     status_filter = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
     q = Order.query.order_by(Order.created_at.desc())
     if status_filter:
         q = q.filter_by(status=status_filter)
-    return render_template('admin/orders.html', orders=q.all(), status_filter=status_filter)
+    pagination = q.paginate(page=page, per_page=20, error_out=False)
+    return render_template('admin/orders.html', orders=pagination.items,
+                           pagination=pagination, status_filter=status_filter)
 
 
 @admin_bp.route('/orders/<int:order_id>')

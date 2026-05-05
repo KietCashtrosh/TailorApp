@@ -43,7 +43,7 @@ def tailors():
     user_lat = request.args.get('lat', type=float)
     user_lng = request.args.get('lng', type=float)
 
-    q = TailorProfile.query.filter_by(is_active=True)
+    q = TailorProfile.query.filter_by(is_active=True, is_available=True)
     if design_filter:
         q = q.filter(TailorProfile.specializations.contains(design_filter))
     if search:
@@ -184,8 +184,27 @@ def place_order():
 @login_required
 @customer_required
 def my_orders():
-    orders = current_user.customer_orders.order_by(Order.created_at.desc()).all()
-    return render_template('customer/my_orders.html', orders=orders)
+    page = request.args.get('page', 1, type=int)
+    pagination = (current_user.customer_orders
+                  .order_by(Order.created_at.desc())
+                  .paginate(page=page, per_page=10, error_out=False))
+    return render_template('customer/my_orders.html',
+                           orders=pagination.items, pagination=pagination)
+
+
+@customer_bp.route('/orders/<int:order_id>/cancel', methods=['POST'])
+@login_required
+@customer_required
+def cancel_order(order_id):
+    order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
+    if order.status != 'placed':
+        flash('This order can no longer be cancelled.', 'warning')
+        return redirect(url_for('customer.order_detail', order_id=order_id))
+    reason = request.form.get('reason', '').strip() or 'Cancelled by customer.'
+    order.add_status('cancelled', note=reason, changed_by_id=current_user.id)
+    db.session.commit()
+    flash('Order cancelled successfully.', 'success')
+    return redirect(url_for('customer.my_orders'))
 
 
 @customer_bp.route('/orders/<int:order_id>')

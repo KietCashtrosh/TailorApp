@@ -75,5 +75,10 @@
     </a>
   </div>
   {% endif %}
+
+  {% if orders %}
+  {% from '_pagination.html' import render_pagination %}
+  {{ render_pagination(pagination, 'customer.my_orders') }}
+  {% endif %}
 </div>
 {% endblock %}

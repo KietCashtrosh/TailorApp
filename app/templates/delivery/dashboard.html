@@ -4,7 +4,12 @@
 <h4 class="fw-bold mb-1">Hi, {{ current_user.name }} <i class="bi bi-truck text-success"></i></h4>
 <p class="text-muted mb-4">Your delivery assignments for today</p>
 
-<div class="row g-3 mb-4">
+<div id="stats-row" class="row g-3 mb-4"
+     hx-get="{{ url_for('delivery.dashboard') }}"
+     hx-trigger="every 12s"
+     hx-target="#stats-row"
+     hx-select="#stats-row"
+     hx-swap="outerHTML">
   <div class="col-6 col-md-3">
     <div class="stat-card bg-white shadow-sm border-start border-4 border-warning">
       <div class="text-muted small">Active</div>
@@ -64,6 +69,4 @@
 {% endif %}
 {% endblock %}
 
-{% block extra_scripts %}
-<script>setTimeout(() => location.reload(), 12000);</script>
 {% endblock %}

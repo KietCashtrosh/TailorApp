@@ -47,5 +47,9 @@
       </tbody>
     </table>
   </div>
+  {% from '_pagination.html' import render_pagination %}
+  <div class="px-3 py-2 border-top">
+    {{ render_pagination(pagination, 'admin.orders', status=status_filter) }}
+  </div>
 </div>
 {% endblock %}

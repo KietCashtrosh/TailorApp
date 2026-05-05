@@ -3,7 +3,12 @@
 {% block admin_content %}
 <h4 class="fw-bold mb-4"><i class="bi bi-speedometer2 me-2 text-brand-purple"></i>Admin Dashboard</h4>
 
-<div class="row g-3 mb-4">
+<div id="stats-row" class="row g-3 mb-4"
+     hx-get="{{ url_for('admin.dashboard') }}"
+     hx-trigger="every 12s"
+     hx-target="#stats-row"
+     hx-select="#stats-row"
+     hx-swap="outerHTML">
   <div class="col-6 col-lg-3">
     <div class="stat-card bg-white shadow-sm">
       <div class="text-muted small mb-1">Total Orders</div>
@@ -42,8 +47,6 @@
   </div>
 </div>
 
-<div hx-get="{{ url_for('admin.notifications') }}" hx-trigger="every 12s" hx-swap="none"></div>
-
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
     <span><i class="bi bi-clock-history me-2"></i>Recent Orders</span>
@@ -76,6 +79,4 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}
-<script>setTimeout(() => location.reload(), 12000);</script>
 {% endblock %}

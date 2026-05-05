@@ -47,16 +47,31 @@ def notifications():
     return jsonify({'new_orders': profile.orders.filter_by(status='placed').count()})
 
 
+@tailor_bp.route('/availability/toggle', methods=['POST'])
+@login_required
+@tailor_required
+def toggle_availability():
+    profile = get_tailor_profile()
+    profile.is_available = not profile.is_available
+    db.session.commit()
+    state = 'Open' if profile.is_available else 'Closed'
+    flash(f'Your shop is now marked as {state}.', 'success')
+    return redirect(url_for('tailor.dashboard'))
+
+
 @tailor_bp.route('/orders')
 @login_required
 @tailor_required
 def orders():
     profile = get_tailor_profile()
     status_filter = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
     q = profile.orders.order_by(Order.created_at.desc())
     if status_filter:
         q = q.filter_by(status=status_filter)
-    return render_template('tailor/orders.html', orders=q.all(),
+    pagination = q.paginate(page=page, per_page=15, error_out=False)
+    return render_template('tailor/orders.html', orders=pagination.items,
+                           pagination=pagination,
                            status_filter=status_filter, profile=profile)
 
 

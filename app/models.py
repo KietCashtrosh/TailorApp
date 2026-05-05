@@ -54,6 +54,7 @@ class TailorProfile(db.Model):
     rating = db.Column(db.Float, default=0.0)
     rating_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
+    is_available = db.Column(db.Boolean, default=True)   # shop open/closed toggle
     bio = db.Column(db.Text, default='')
 
     orders = db.relationship('Order', backref='tailor', lazy='dynamic')
