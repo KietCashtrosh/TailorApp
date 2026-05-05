@@ -9,6 +9,7 @@
     <ul class="nav flex-column gap-1 flex-grow-1">
       <li><a href="{{ url_for('admin.dashboard') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.dashboard' %}active{% endif %}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
       <li><a href="{{ url_for('admin.orders') }}" class="nav-link px-3 py-2 {% if 'admin.order' in request.endpoint %}active{% endif %}"><i class="bi bi-receipt me-2"></i>Orders</a></li>
+      <li><a href="{{ url_for('admin.analytics') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.analytics' %}active{% endif %}"><i class="bi bi-bar-chart-line me-2"></i>Analytics</a></li>
       <li class="mt-2"><div class="text-muted px-3 py-1" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Catalogue</div></li>
       <li><a href="{{ url_for('admin.designs') }}" class="nav-link px-3 py-2 {% if 'admin.design' in request.endpoint %}active{% endif %}"><i class="bi bi-grid me-2"></i>Designs & Pricing</a></li>
       <li><a href="{{ url_for('admin.coupons') }}" class="nav-link px-3 py-2 {% if 'admin.coupon' in request.endpoint %}active{% endif %}"><i class="bi bi-tag me-2"></i>Coupons</a></li>

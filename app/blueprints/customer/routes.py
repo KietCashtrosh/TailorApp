@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from app.blueprints.customer import customer_bp
 from app.extensions import db
 from app.models import (TailorProfile, Design, Order, CustomerMeasurement,
-                        Coupon, Review, generate_order_number)
+                        Coupon, Review, CartItem, generate_order_number)
 
 
 def customer_required(f):
@@ -360,6 +360,156 @@ def my_measurements():
         customer_id=current_user.id
     ).order_by(CustomerMeasurement.updated_at.desc()).all()
     return render_template('customer/measurements.html', records=records)
+
+
+# ── Cart ────────────────────────────────────────────────────
+
+@customer_bp.route('/cart')
+@login_required
+@customer_required
+def cart():
+    items = CartItem.query.filter_by(customer_id=current_user.id).order_by(CartItem.created_at).all()
+    # Attach effective price to each item
+    for item in items:
+        tmpl = item.tailor.get_measurement_template(item.design_id)
+        item.effective_price = tmpl.effective_price() if tmpl else item.design.base_price
+    total = sum(i.effective_price for i in items)
+    return render_template('customer/cart.html', items=items, total=total,
+                           default_pickup=current_user.default_pickup_address or '',
+                           default_delivery=current_user.default_delivery_address or '')
+
+
+@customer_bp.route('/cart/add', methods=['POST'])
+@login_required
+@customer_required
+def cart_add():
+    tailor_id = request.form.get('tailor_id', type=int)
+    design_id = request.form.get('design_id', type=int)
+    fabric_description = request.form.get('fabric_description', '').strip()
+    special_instructions = request.form.get('special_instructions', '').strip()
+    measurement_preference = request.form.get('measurement_preference', 'delivery_will_measure')
+
+    tailor = TailorProfile.query.filter_by(id=tailor_id, is_active=True).first()
+    design = Design.query.filter_by(id=design_id, is_active=True).first()
+
+    if not tailor or not design:
+        flash('Invalid tailor or design.', 'danger')
+        return redirect(request.referrer or url_for('customer.tailors'))
+
+    # Prevent duplicate same design+tailor in cart
+    existing = CartItem.query.filter_by(
+        customer_id=current_user.id, tailor_id=tailor_id, design_id=design_id
+    ).first()
+    if existing:
+        flash(f'{design.name} from {tailor.shop_name} is already in your cart.', 'info')
+        return redirect(url_for('customer.cart'))
+
+    measurements = {}
+    if measurement_preference == 'provided_by_customer':
+        fields = design.get_measurement_fields()
+        tmpl = tailor.get_measurement_template(design_id)
+        if tmpl:
+            fields = tmpl.get_measurement_fields()
+        for field in fields:
+            val = request.form.get(f'measurement_{field["key"]}', '').strip()
+            measurements[field['key']] = val
+
+    item = CartItem(
+        customer_id=current_user.id,
+        tailor_id=tailor_id,
+        design_id=design_id,
+        fabric_description=fabric_description,
+        special_instructions=special_instructions,
+        measurement_preference=measurement_preference,
+        measurements=json.dumps(measurements),
+    )
+    db.session.add(item)
+    db.session.commit()
+    flash(f'{design.name} added to your cart.', 'success')
+    return redirect(url_for('customer.cart'))
+
+
+@customer_bp.route('/cart/remove/<int:item_id>', methods=['POST'])
+@login_required
+@customer_required
+def cart_remove(item_id):
+    item = CartItem.query.filter_by(id=item_id, customer_id=current_user.id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    flash('Item removed from cart.', 'info')
+    return redirect(url_for('customer.cart'))
+
+
+@customer_bp.route('/cart/checkout', methods=['POST'])
+@login_required
+@customer_required
+def cart_checkout():
+    items = CartItem.query.filter_by(customer_id=current_user.id).all()
+    if not items:
+        flash('Your cart is empty.', 'warning')
+        return redirect(url_for('customer.tailors'))
+
+    pickup_address = request.form.get('pickup_address', '').strip()
+    delivery_address = request.form.get('delivery_address', '').strip()
+    payment_method = request.form.get('payment_method', 'cod')
+    coupon_code = request.form.get('coupon_code', '').strip().upper()
+
+    if not pickup_address or not delivery_address:
+        flash('Please fill in pickup and delivery addresses.', 'danger')
+        return redirect(url_for('customer.cart'))
+
+    # Save addresses to profile if changed
+    if pickup_address != current_user.default_pickup_address:
+        current_user.default_pickup_address = pickup_address
+    if delivery_address != current_user.default_delivery_address:
+        current_user.default_delivery_address = delivery_address
+
+    coupon = Coupon.query.filter_by(code=coupon_code).first() if coupon_code else None
+    placed_orders = []
+
+    for item in items:
+        tmpl = item.tailor.get_measurement_template(item.design_id)
+        base_price = tmpl.effective_price() if tmpl else item.design.base_price
+
+        discount_amount = 0
+        applied_code = ''
+        if coupon:
+            discount, msg = coupon.compute_discount(base_price)
+            if discount > 0:
+                discount_amount = discount
+                applied_code = coupon_code
+
+        order = Order(
+            order_number=generate_order_number(),
+            customer_id=current_user.id,
+            tailor_id=item.tailor_id,
+            design_id=item.design_id,
+            measurements=item.measurements,
+            measurement_preference=item.measurement_preference,
+            fabric_description=item.fabric_description,
+            special_instructions=item.special_instructions,
+            pickup_address=pickup_address,
+            delivery_address=delivery_address,
+            estimated_price=base_price,
+            discount_amount=discount_amount,
+            coupon_code=applied_code,
+            payment_method=payment_method,
+            payment_status='cod_pending' if payment_method == 'cod' else 'unpaid',
+        )
+        db.session.add(order)
+        db.session.flush()
+        order.add_status('placed', note='Order placed via cart.', changed_by_id=current_user.id)
+        placed_orders.append(order)
+
+    if coupon and applied_code:
+        coupon.uses_count += len(placed_orders)
+
+    # Clear the cart
+    CartItem.query.filter_by(customer_id=current_user.id).delete()
+    db.session.commit()
+
+    flash(f'{len(placed_orders)} order(s) placed successfully!', 'success')
+    return redirect(url_for('customer.my_orders'))
 
 
 def _save_measurements(customer_id, design_id, measurements_dict, taken_by_id=None):

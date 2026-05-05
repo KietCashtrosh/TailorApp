@@ -33,6 +33,16 @@
           {% else %}
             <li class="nav-item"><a class="nav-link text-white-50" href="{{ url_for('customer.tailors') }}">Find Tailors</a></li>
             <li class="nav-item"><a class="nav-link text-white-50" href="{{ url_for('customer.my_orders') }}">My Orders</a></li>
+            <li class="nav-item">
+              <a class="nav-link text-white position-relative" href="{{ url_for('customer.cart') }}">
+                <i class="bi bi-cart3 fs-5"></i>
+                {% if cart_count and cart_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;">
+                  {{ cart_count }}
+                </span>
+                {% endif %}
+              </a>
+            </li>
           {% endif %}
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">

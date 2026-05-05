@@ -1,14 +1,16 @@
 import os
+import csv
+import io
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.utils import secure_filename
-from flask import render_template, redirect, url_for, flash, request, current_app, jsonify
+from flask import render_template, redirect, url_for, flash, request, current_app, jsonify, Response
 from flask_login import login_required, current_user
 from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models import (User, TailorProfile, Order, DeliveryAssignment, Design,
-                        Coupon, Review, generate_otp)
+                        Coupon, Review, generate_otp, ORDER_STATUSES)
 
 
 def admin_required(f):
@@ -111,6 +113,47 @@ def orders():
                            pagination=pagination, status_filter=status_filter)
 
 
+@admin_bp.route('/orders/export')
+@login_required
+@admin_required
+def export_orders():
+    status_filter = request.args.get('status', '')
+    q = Order.query.order_by(Order.created_at.desc())
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Order #', 'Date', 'Customer', 'Customer Phone', 'Customer Email',
+        'Tailor', 'Design', 'Status', 'Est. Price (Rs)', 'Final Price (Rs)',
+        'Discount (Rs)', 'Coupon', 'Payable (Rs)',
+        'Payment Method', 'Payment Status',
+        'Pickup Address', 'Delivery Address',
+        'Est. Days', 'ETA Date', 'Fabric', 'Special Instructions',
+    ])
+    for o in q.all():
+        writer.writerow([
+            o.order_number,
+            o.created_at.strftime('%d-%m-%Y %H:%M'),
+            o.customer.name, o.customer.phone, o.customer.email,
+            o.tailor.shop_name, o.design.name, o.status_label(),
+            o.estimated_price or '', o.final_price or '',
+            o.discount_amount or 0, o.coupon_code or '', o.payable_amount(),
+            o.payment_method_label(), o.payment_status_label(),
+            o.pickup_address, o.delivery_address,
+            o.estimated_days or '', o.eta_date() or '',
+            o.fabric_description, o.special_instructions,
+        ])
+
+    filename = f"orders_{status_filter or 'all'}_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
 @admin_bp.route('/orders/<int:order_id>')
 @login_required
 @admin_required
@@ -121,7 +164,31 @@ def order_detail(order_id):
     history = order.status_history.all()
     return render_template('admin/order_detail.html', order=order,
                            delivery_agents=delivery_agents,
-                           assignments=assignments, history=history)
+                           assignments=assignments, history=history,
+                           order_statuses=ORDER_STATUSES)
+
+
+@admin_bp.route('/orders/<int:order_id>/dispute', methods=['POST'])
+@login_required
+@admin_required
+def order_dispute(order_id):
+    order = Order.query.get_or_404(order_id)
+    admin_note = request.form.get('admin_note', '').strip()
+    force_status = request.form.get('force_status', '').strip()
+    valid_statuses = [s for s, _ in ORDER_STATUSES]
+
+    if admin_note:
+        order.admin_note = admin_note
+
+    if force_status and force_status in valid_statuses and force_status != order.status:
+        note = f'[Admin Override] {admin_note}' if admin_note else '[Admin Override]'
+        order.add_status(force_status, note=note, changed_by_id=current_user.id)
+        flash(f'Order status forced to "{order.status_label()}".', 'warning')
+    elif admin_note:
+        flash('Admin note saved.', 'success')
+
+    db.session.commit()
+    return redirect(url_for('admin.order_detail', order_id=order_id))
 
 
 @admin_bp.route('/orders/<int:order_id>/assign-delivery', methods=['POST'])
@@ -401,6 +468,84 @@ def add_delivery_agent():
 def reviews():
     all_reviews = Review.query.order_by(Review.created_at.desc()).all()
     return render_template('admin/reviews.html', reviews=all_reviews)
+
+
+# ── Analytics ─────────────────────────────────────────────
+@admin_bp.route('/analytics')
+@login_required
+@admin_required
+def analytics():
+    # Revenue & order count by week (last 8 weeks)
+    weekly = []
+    for i in range(7, -1, -1):
+        week_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start -= timedelta(days=week_start.weekday() + i * 7)
+        week_end = week_start + timedelta(days=7)
+        orders_in_week = Order.query.filter(
+            Order.created_at >= week_start,
+            Order.created_at < week_end,
+            Order.status.notin_(['rejected', 'cancelled'])
+        ).all()
+        revenue = sum((o.final_price or o.estimated_price or 0) for o in orders_in_week)
+        weekly.append({
+            'label': week_start.strftime('%d %b'),
+            'orders': len(orders_in_week),
+            'revenue': round(revenue, 2),
+        })
+
+    # Orders by design
+    designs = Design.query.filter_by(is_active=True).all()
+    design_stats = []
+    for d in designs:
+        count = Order.query.filter_by(design_id=d.id).filter(
+            Order.status.notin_(['rejected', 'cancelled'])
+        ).count()
+        design_stats.append({'name': d.name, 'count': count})
+    design_stats.sort(key=lambda x: x['count'], reverse=True)
+
+    # Orders by status
+    status_stats = []
+    for val, label in ORDER_STATUSES:
+        count = Order.query.filter_by(status=val).count()
+        if count:
+            status_stats.append({'status': label, 'count': count})
+
+    # Top 5 tailors by completed orders
+    tailors_all = TailorProfile.query.filter_by(is_active=True).all()
+    tailor_stats = []
+    for t in tailors_all:
+        completed = t.orders.filter_by(status='delivered').count()
+        revenue = sum(
+            (o.final_price or o.estimated_price or 0)
+            for o in t.orders.filter_by(status='delivered').all()
+        )
+        tailor_stats.append({
+            'name': t.shop_name,
+            'completed': completed,
+            'revenue': round(revenue, 2),
+            'rating': t.rating,
+        })
+    tailor_stats.sort(key=lambda x: x['completed'], reverse=True)
+    top_tailors = tailor_stats[:5]
+
+    # Summary cards
+    total_revenue = sum(
+        (o.final_price or o.estimated_price or 0)
+        for o in Order.query.filter_by(status='delivered').all()
+    )
+    summary = {
+        'total_revenue': round(total_revenue, 2),
+        'total_orders': Order.query.count(),
+        'delivered': Order.query.filter_by(status='delivered').count(),
+        'active': Order.query.filter(
+            Order.status.notin_(['placed', 'delivered', 'rejected', 'cancelled'])
+        ).count(),
+    }
+
+    return render_template('admin/analytics.html',
+                           weekly=weekly, design_stats=design_stats,
+                           status_stats=status_stats, top_tailors=top_tailors,
+                           summary=summary)
 
 
 # ── API: validate coupon ───────────────────────────────────

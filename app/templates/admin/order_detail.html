@@ -122,7 +122,7 @@
 
   <div class="col-lg-4">
     <!-- Status Timeline -->
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2"></i>Status History</div>
       <div class="card-body">
         <div class="status-timeline">
@@ -137,6 +137,41 @@
           </div>
           {% endfor %}
         </div>
+      </div>
+    </div>
+
+    <!-- Dispute / Admin Controls -->
+    <div class="card border-0 shadow-sm border-start border-4 border-danger">
+      <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-shield-exclamation me-2 text-danger"></i>Admin Controls
+      </div>
+      <div class="card-body">
+        {% if order.admin_note %}
+        <div class="alert alert-warning small py-2 mb-3">
+          <strong>Current Note:</strong> {{ order.admin_note }}
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.order_dispute', order_id=order.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Admin Note</label>
+            <textarea name="admin_note" class="form-control form-control-sm" rows="3"
+                      placeholder="Describe the issue or resolution…">{{ order.admin_note or '' }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Force Status Change</label>
+            <select name="force_status" class="form-select form-select-sm">
+              <option value="">— Keep current status —</option>
+              {% for val, label in order_statuses %}
+              <option value="{{ val }}" {% if order.status == val %}disabled{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text text-danger small">Override only when resolving disputes.</div>
+          </div>
+          <button type="submit" class="btn btn-danger btn-sm w-100 fw-semibold">
+            <i class="bi bi-save me-1"></i>Save Admin Action
+          </button>
+        </form>
       </div>
     </div>
   </div>

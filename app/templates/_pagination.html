@@ -3,7 +3,7 @@
           {{ render_pagination(pagination, endpoint, **kwargs) }}
    kwargs are extra url_for args (e.g. status=status_filter)
 #}
-{% macro render_pagination(pagination, endpoint, **kwargs) %}
+{% macro render_pagination(pagination, endpoint) %}
 {% if pagination.pages > 1 %}
 <nav class="d-flex justify-content-between align-items-center mt-3 px-1" aria-label="Pagination">
   <div class="text-muted small">

@@ -248,6 +248,7 @@ class Order(db.Model):
     payment_method = db.Column(db.String(20), default='cod')   # cod | online | cash
     payment_status = db.Column(db.String(20), default='unpaid') # unpaid | paid | cod_pending
     accepted_at = db.Column(db.DateTime)
+    admin_note = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -382,6 +383,33 @@ class CustomerMeasurement(db.Model):
 
     def __repr__(self):
         return f'<CustomerMeasurement customer={self.customer_id} design={self.design_id}>'
+
+
+class CartItem(db.Model):
+    __tablename__ = 'cart_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
+    design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
+    fabric_description = db.Column(db.Text, default='')
+    special_instructions = db.Column(db.Text, default='')
+    measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
+    measurements = db.Column(db.Text, default='{}')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    customer = db.relationship('User', foreign_keys=[customer_id])
+    tailor = db.relationship('TailorProfile')
+    design = db.relationship('Design')
+
+    def get_measurements(self):
+        try:
+            return json.loads(self.measurements)
+        except Exception:
+            return {}
+
+    def __repr__(self):
+        return f'<CartItem customer={self.customer_id} design={self.design_id}>'
 
 
 class Review(db.Model):
