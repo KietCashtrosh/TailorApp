@@ -120,7 +120,8 @@ class TailorMeasurementTemplate(db.Model):
     tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
     design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
     measurement_fields = db.Column(db.Text, default='[]')  # JSON list of {key, label}
-    custom_price = db.Column(db.Float, nullable=True)  # override base price for this tailor+design
+    custom_price = db.Column(db.Float, nullable=True)  # tailor's own price for this design
+    admin_offer_price = db.Column(db.Float, nullable=True)  # admin-controlled promotional offer
 
     design = db.relationship('Design')
 
@@ -138,7 +139,15 @@ class TailorMeasurementTemplate(db.Model):
         self.measurement_fields = json.dumps(fields_list)
 
     def effective_price(self):
+        if self.admin_offer_price is not None:
+            return self.admin_offer_price
         return self.custom_price if self.custom_price else self.design.base_price
+
+    def offer_original_price(self):
+        """Returns the pre-offer price when admin_offer_price is active, else None."""
+        if self.admin_offer_price is not None:
+            return self.custom_price if self.custom_price else self.design.base_price
+        return None
 
     def __repr__(self):
         return f'<TailorMeasurementTemplate tailor={self.tailor_id} design={self.design_id}>'
@@ -410,6 +419,28 @@ class CartItem(db.Model):
 
     def __repr__(self):
         return f'<CartItem customer={self.customer_id} design={self.design_id}>'
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(300), default='')
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='notifications')
+
+    def __repr__(self):
+        return f'<Notification user={self.user_id} read={self.is_read}>'
+
+
+def notify(user_id, message, link=''):
+    """Add an unread notification for a user. Caller must commit the session."""
+    n = Notification(user_id=user_id, message=message, link=link)
+    db.session.add(n)
 
 
 class Review(db.Model):

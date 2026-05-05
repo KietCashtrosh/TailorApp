@@ -10,7 +10,8 @@ from flask_login import login_required, current_user
 from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models import (User, TailorProfile, Order, DeliveryAssignment, Design,
-                        Coupon, Review, generate_otp, ORDER_STATUSES)
+                        Coupon, Review, TailorMeasurementTemplate, Notification, notify,
+                        generate_otp, ORDER_STATUSES)
 
 
 def admin_required(f):
@@ -64,6 +65,19 @@ def notifications():
                     'pending_approvals': pending_approvals})
 
 
+@admin_bp.route('/my-notifications')
+@login_required
+@admin_required
+def my_notifications():
+    notifs = (Notification.query
+              .filter_by(user_id=current_user.id)
+              .order_by(Notification.created_at.desc())
+              .limit(60).all())
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return render_template('shared/notifications.html', notifications=notifs)
+
+
 # ── Approvals ──────────────────────────────────────────────
 @admin_bp.route('/approvals')
 @login_required
@@ -81,6 +95,7 @@ def approve_user(user_id):
     user = User.query.get_or_404(user_id)
     user.approval_status = 'approved'
     user.is_active = True
+    notify(user.id, 'Your registration has been approved. You can now log in.')
     db.session.commit()
     flash(f'{user.name} ({user.role}) has been approved and can now log in.', 'success')
     return redirect(url_for('admin.approvals'))
@@ -93,6 +108,7 @@ def reject_user(user_id):
     user = User.query.get_or_404(user_id)
     user.approval_status = 'rejected'
     user.is_active = False
+    notify(user.id, 'Your registration was not approved. Please contact support for more details.')
     db.session.commit()
     flash(f'{user.name}\'s registration has been rejected.', 'warning')
     return redirect(url_for('admin.approvals'))
@@ -183,6 +199,9 @@ def order_dispute(order_id):
     if force_status and force_status in valid_statuses and force_status != order.status:
         note = f'[Admin Override] {admin_note}' if admin_note else '[Admin Override]'
         order.add_status(force_status, note=note, changed_by_id=current_user.id)
+        notify(order.customer_id,
+               f'Order {order.order_number} was updated by admin: "{order.status_label()}".',
+               url_for('customer.order_detail', order_id=order.id))
         flash(f'Order status forced to "{order.status_label()}".', 'warning')
     elif admin_note:
         flash('Admin note saved.', 'success')
@@ -400,6 +419,35 @@ def add_tailor():
         return redirect(url_for('admin.tailors'))
 
     return render_template('admin/add_tailor.html', designs=designs)
+
+
+@admin_bp.route('/tailors/<int:tailor_id>/offers', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def tailor_offers(tailor_id):
+    tailor = TailorProfile.query.get_or_404(tailor_id)
+    designs = Design.query.filter_by(is_active=True).all()
+    specs = tailor.get_specializations()
+
+    if request.method == 'POST':
+        for design in designs:
+            if design.name not in specs:
+                continue
+            offer_val = request.form.get(f'offer_{design.id}', '').strip()
+            tmpl = tailor.get_measurement_template(design.id)
+            if not tmpl:
+                tmpl = TailorMeasurementTemplate(tailor_id=tailor.id, design_id=design.id)
+                db.session.add(tmpl)
+                db.session.flush()
+            tmpl.admin_offer_price = float(offer_val) if offer_val else None
+        db.session.commit()
+        flash('Offer prices updated successfully.', 'success')
+        return redirect(url_for('admin.tailor_offers', tailor_id=tailor_id))
+
+    templates = {t.design_id: t for t in tailor.measurement_templates.all()}
+    return render_template('admin/tailor_offers.html',
+                           tailor=tailor, designs=designs,
+                           specs=specs, templates=templates)
 
 
 @admin_bp.route('/tailors/<int:tailor_id>/toggle', methods=['POST'])

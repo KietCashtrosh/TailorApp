@@ -44,6 +44,23 @@
               </a>
             </li>
           {% endif %}
+          <li class="nav-item">
+            {% if current_user.role == 'tailor' %}
+              {% set notif_url = url_for('tailor.my_notifications') %}
+            {% elif current_user.role == 'admin' %}
+              {% set notif_url = url_for('admin.my_notifications') %}
+            {% else %}
+              {% set notif_url = url_for('customer.my_notifications') %}
+            {% endif %}
+            <a class="nav-link text-white position-relative" href="{{ notif_url }}">
+              <i class="bi bi-bell fs-5"></i>
+              {% if unread_notif_count and unread_notif_count > 0 %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;">
+                {{ unread_notif_count }}
+              </span>
+              {% endif %}
+            </a>
+          </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">
               <i class="bi bi-person-circle me-1"></i>{{ current_user.name.split()[0] }}

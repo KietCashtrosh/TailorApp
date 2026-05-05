@@ -14,7 +14,7 @@
       <li><a href="{{ url_for('admin.designs') }}" class="nav-link px-3 py-2 {% if 'admin.design' in request.endpoint %}active{% endif %}"><i class="bi bi-grid me-2"></i>Designs & Pricing</a></li>
       <li><a href="{{ url_for('admin.coupons') }}" class="nav-link px-3 py-2 {% if 'admin.coupon' in request.endpoint %}active{% endif %}"><i class="bi bi-tag me-2"></i>Coupons</a></li>
       <li class="mt-2"><div class="text-muted px-3 py-1" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">People</div></li>
-      <li><a href="{{ url_for('admin.tailors') }}" class="nav-link px-3 py-2 {% if request.endpoint in ['admin.tailors','admin.add_tailor'] %}active{% endif %}"><i class="bi bi-scissors me-2"></i>Tailors</a></li>
+      <li><a href="{{ url_for('admin.tailors') }}" class="nav-link px-3 py-2 {% if request.endpoint in ['admin.tailors','admin.add_tailor','admin.tailor_offers'] %}active{% endif %}"><i class="bi bi-scissors me-2"></i>Tailors & Offers</a></li>
       <li><a href="{{ url_for('admin.users') }}" class="nav-link px-3 py-2 {% if request.endpoint=='admin.users' %}active{% endif %}"><i class="bi bi-people me-2"></i>Users</a></li>
       <li><a href="{{ url_for('admin.add_delivery_agent') }}" class="nav-link px-3 py-2"><i class="bi bi-person-plus me-2"></i>Add Agent</a></li>
       <li>

@@ -65,7 +65,16 @@
               </div>
             </div>
             <div class="text-end">
-              <div class="text-brand-orange fw-bold fs-5">from ₹{{ design.base_price|int }}</div>
+              {% set tmpl = tailor.get_measurement_template(design.id) %}
+              {% if tmpl and tmpl.admin_offer_price is not none %}
+                <div>
+                  <span class="text-brand-orange fw-bold fs-5">₹{{ tmpl.admin_offer_price|int }}</span>
+                  <del class="text-muted small ms-1">₹{{ tmpl.offer_original_price()|int }}</del>
+                  <span class="badge bg-danger ms-1" style="font-size:.6rem;">OFFER</span>
+                </div>
+              {% else %}
+                <div class="text-brand-orange fw-bold fs-5">from ₹{{ (tmpl.custom_price|int if tmpl and tmpl.custom_price else design.base_price|int) }}</div>
+              {% endif %}
               {% if current_user.is_authenticated and current_user.role == 'customer' %}
               <div class="d-flex gap-2 mt-1 justify-content-end">
                 <a href="{{ url_for('customer.place_order', tailor_id=tailor.id, design_id=design.id) }}" class="btn btn-sm btn-brand-purple rounded-pill px-3">Order</a>

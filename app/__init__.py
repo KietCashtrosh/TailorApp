@@ -27,11 +27,21 @@ def create_app(config_class=Config):
     app.register_blueprint(delivery_bp, url_prefix='/delivery')
     app.register_blueprint(customer_bp, url_prefix='/')
 
-    from app.models import User
+    from app.models import User, Notification
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    @app.context_processor
+    def inject_notif_count():
+        from flask_login import current_user
+        count = 0
+        if current_user.is_authenticated:
+            count = Notification.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
+        return {'unread_notif_count': count}
 
     @app.errorhandler(404)
     def not_found(e):

@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from app.blueprints.customer import customer_bp
 from app.extensions import db
 from app.models import (TailorProfile, Design, Order, CustomerMeasurement,
-                        Coupon, Review, CartItem, generate_order_number)
+                        Coupon, Review, CartItem, Notification, notify, generate_order_number)
 
 
 def customer_required(f):
@@ -191,6 +191,9 @@ def place_order():
         db.session.flush()
         order.add_status('placed', note='Order placed by customer.',
                          changed_by_id=current_user.id)
+        notify(tailor.user_id,
+               f'New order {order.order_number} for {design.name} from {current_user.name}.',
+               url_for('tailor.order_detail', order_id=order.id))
         db.session.commit()
         flash(f'Order {order.order_number} placed successfully!', 'success')
         return redirect(url_for('customer.order_detail', order_id=order.id))
@@ -224,6 +227,9 @@ def cancel_order(order_id):
         return redirect(url_for('customer.order_detail', order_id=order_id))
     reason = request.form.get('reason', '').strip() or 'Cancelled by customer.'
     order.add_status('cancelled', note=reason, changed_by_id=current_user.id)
+    notify(order.tailor.user_id,
+           f'Order {order.order_number} was cancelled by the customer.',
+           url_for('tailor.order_detail', order_id=order.id))
     db.session.commit()
     flash('Order cancelled successfully.', 'success')
     return redirect(url_for('customer.my_orders'))
@@ -499,6 +505,9 @@ def cart_checkout():
         db.session.add(order)
         db.session.flush()
         order.add_status('placed', note='Order placed via cart.', changed_by_id=current_user.id)
+        notify(item.tailor.user_id,
+               f'New order {order.order_number} for {item.design.name} from {current_user.name}.',
+               url_for('tailor.order_detail', order_id=order.id))
         placed_orders.append(order)
 
     if coupon and applied_code:
@@ -510,6 +519,19 @@ def cart_checkout():
 
     flash(f'{len(placed_orders)} order(s) placed successfully!', 'success')
     return redirect(url_for('customer.my_orders'))
+
+
+@customer_bp.route('/my-notifications')
+@login_required
+@customer_required
+def my_notifications():
+    notifs = (Notification.query
+              .filter_by(user_id=current_user.id)
+              .order_by(Notification.created_at.desc())
+              .limit(60).all())
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return render_template('shared/notifications.html', notifications=notifs)
 
 
 def _save_measurements(customer_id, design_id, measurements_dict, taken_by_id=None):

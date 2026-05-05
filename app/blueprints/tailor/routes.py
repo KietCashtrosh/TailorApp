@@ -5,7 +5,7 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app.blueprints.tailor import tailor_bp
 from app.extensions import db
-from app.models import Order, TailorProfile, Design, TailorMeasurementTemplate
+from app.models import Order, TailorProfile, Design, TailorMeasurementTemplate, Notification, notify
 
 
 def tailor_required(f):
@@ -127,6 +127,9 @@ def update_order_status(order_id):
             order.estimated_price = tmpl.effective_price() if tmpl else order.design.base_price
 
     order.add_status(new_status, note=note, changed_by_id=current_user.id)
+    notify(order.customer_id,
+           f'Order {order.order_number}: status updated to "{order.status_label()}".',
+           url_for('customer.order_detail', order_id=order.id))
     db.session.commit()
     flash(f'Order status updated to "{order.status_label()}".', 'success')
     return redirect(url_for('tailor.order_detail', order_id=order_id))
@@ -158,6 +161,19 @@ def profile():
 
     return render_template('tailor/profile.html',
                            tailor_profile=tailor_profile, all_designs=all_designs)
+
+
+@tailor_bp.route('/my-notifications')
+@login_required
+@tailor_required
+def my_notifications():
+    notifs = (Notification.query
+              .filter_by(user_id=current_user.id)
+              .order_by(Notification.created_at.desc())
+              .limit(60).all())
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return render_template('shared/notifications.html', notifications=notifs)
 
 
 # ── Measurement Templates ──────────────────────────────────

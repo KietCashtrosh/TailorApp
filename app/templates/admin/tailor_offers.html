@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% block title %}Price Offers — {{ tailor.shop_name }}{% endblock %}
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.tailors') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-tag me-2 text-warning"></i>Price Offers</h4>
+    <div class="text-muted small">{{ tailor.shop_name }} · {{ tailor.user.name }}</div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <div class="fw-semibold">Set Offer Prices per Design</div>
+        <div class="text-muted small mt-1">
+          Offer prices override the tailor's own price and are shown to customers with a strikethrough on the original.
+          Leave blank to remove an offer.
+        </div>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-body p-0">
+          {% set has_specs = namespace(value=false) %}
+          {% for design in designs %}
+          {% if design.name in specs %}
+          {% set has_specs.value = true %}
+          {% set tmpl = templates.get(design.id) %}
+          <div class="d-flex align-items-center gap-4 p-3 border-bottom">
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ design.name }}</div>
+              <div class="text-muted small">
+                Base price: <strong>₹{{ design.base_price|int }}</strong>
+                {% if tmpl and tmpl.custom_price %}
+                  · Tailor's price: <strong>₹{{ tmpl.custom_price|int }}</strong>
+                {% endif %}
+                {% if tmpl and tmpl.admin_offer_price is not none %}
+                  · <span class="text-warning fw-semibold">Active offer: ₹{{ tmpl.admin_offer_price|int }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <div style="width:160px;">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">₹</span>
+                <input type="number" name="offer_{{ design.id }}" class="form-control"
+                       placeholder="Offer price"
+                       value="{{ tmpl.admin_offer_price|int if tmpl and tmpl.admin_offer_price is not none else '' }}"
+                       min="0" step="1">
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+          {% if not has_specs.value %}
+          <div class="text-center text-muted py-5">This tailor has no active specializations.</div>
+          {% endif %}
+        </div>
+        {% if has_specs.value %}
+        <div class="card-footer bg-white py-3 d-flex gap-3">
+          <button type="submit" class="btn btn-warning fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i>Save Offer Prices
+          </button>
+          <a href="{{ url_for('admin.tailors') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="fw-semibold mb-3"><i class="bi bi-info-circle me-2 text-brand-purple"></i>How Offers Work</div>
+        <ul class="text-muted small ps-3 mb-0" style="line-height:2;">
+          <li>Admin offer price takes <strong>highest priority</strong> over the tailor's own price.</li>
+          <li>Customers see the offer price with the original <del>crossed out</del>.</li>
+          <li>The tailor still sets the <strong>final confirmed price</strong> when they accept the order.</li>
+          <li>Clear the field and save to <strong>remove</strong> an active offer.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
