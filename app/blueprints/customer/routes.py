@@ -42,6 +42,8 @@ def tailors():
     search = request.args.get('search', '').strip()
     user_lat = request.args.get('lat', type=float)
     user_lng = request.args.get('lng', type=float)
+    min_rating = request.args.get('min_rating', type=float)
+    sort_by = request.args.get('sort', '')  # rating | price_asc | price_desc
 
     q = TailorProfile.query.filter_by(is_active=True)
     if design_filter:
@@ -49,20 +51,35 @@ def tailors():
     if search:
         q = q.filter(TailorProfile.shop_name.ilike(f'%{search}%') |
                      TailorProfile.address.ilike(f'%{search}%'))
+    if min_rating:
+        q = q.filter(TailorProfile.rating >= min_rating)
 
     tailors_list = q.all()
+
     if user_lat and user_lng:
         for t in tailors_list:
             if t.latitude and t.longitude:
                 t.distance = round(haversine(user_lat, user_lng, t.latitude, t.longitude), 1)
             else:
                 t.distance = None
-        tailors_list.sort(key=lambda t: (t.distance is None, t.distance or 9999))
+        if not sort_by:
+            tailors_list.sort(key=lambda t: (t.distance is None, t.distance or 9999))
+
+    if sort_by == 'rating':
+        tailors_list.sort(key=lambda t: t.rating, reverse=True)
+    elif sort_by == 'price_asc':
+        tailors_list.sort(key=lambda t: min(
+            (tmpl.effective_price() for tmpl in t.measurement_templates.all()), default=0))
+    elif sort_by == 'price_desc':
+        tailors_list.sort(key=lambda t: min(
+            (tmpl.effective_price() for tmpl in t.measurement_templates.all()), default=0),
+            reverse=True)
 
     designs = Design.query.filter_by(is_active=True).all()
     return render_template('customer/tailors.html', tailors=tailors_list,
                            designs=designs, design_filter=design_filter,
-                           search=search, user_lat=user_lat, user_lng=user_lng)
+                           search=search, user_lat=user_lat, user_lng=user_lng,
+                           min_rating=min_rating, sort_by=sort_by)
 
 
 @customer_bp.route('/tailors/<int:tailor_id>')
@@ -106,6 +123,7 @@ def place_order():
         special_instructions = request.form.get('special_instructions', '').strip()
         measurement_preference = request.form.get('measurement_preference', 'delivery_will_measure')
         coupon_code = request.form.get('coupon_code', '').strip().upper()
+        payment_method = request.form.get('payment_method', 'cod')
 
         tailor = TailorProfile.query.get(tailor_id)
         design = Design.query.get(design_id)
@@ -166,6 +184,8 @@ def place_order():
             estimated_price=base_price,
             discount_amount=discount_amount,
             coupon_code=applied_code,
+            payment_method=payment_method,
+            payment_status='cod_pending' if payment_method == 'cod' else 'unpaid',
         )
         db.session.add(order)
         db.session.flush()
@@ -177,7 +197,9 @@ def place_order():
 
     return render_template('customer/place_order.html', tailor=tailor, design=design,
                            all_tailors=all_tailors, all_designs=all_designs,
-                           saved_measurements=saved_measurements)
+                           saved_measurements=saved_measurements,
+                           default_pickup=current_user.default_pickup_address or '',
+                           default_delivery=current_user.default_delivery_address or '')
 
 
 @customer_bp.route('/orders')
@@ -294,6 +316,31 @@ def validate_coupon():
         return jsonify({'valid': False, 'message': msg or 'Invalid coupon.'})
     return jsonify({'valid': True, 'discount': discount,
                     'message': f'Coupon applied! You save Rs.{discount:.0f}.'})
+
+
+@customer_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+@customer_required
+def profile():
+    if request.method == 'POST':
+        current_user.name = request.form.get('name', current_user.name).strip()
+        current_user.phone = request.form.get('phone', current_user.phone).strip()
+        current_user.default_pickup_address = request.form.get('default_pickup_address', '').strip()
+        current_user.default_delivery_address = request.form.get('default_delivery_address', '').strip()
+        db.session.commit()
+        flash('Profile updated successfully.', 'success')
+        return redirect(url_for('customer.profile'))
+    return render_template('customer/profile.html')
+
+
+@customer_bp.route('/measurements')
+@login_required
+@customer_required
+def my_measurements():
+    records = CustomerMeasurement.query.filter_by(
+        customer_id=current_user.id
+    ).order_by(CustomerMeasurement.updated_at.desc()).all()
+    return render_template('customer/measurements.html', records=records)
 
 
 def _save_measurements(customer_id, design_id, measurements_dict, taken_by_id=None):

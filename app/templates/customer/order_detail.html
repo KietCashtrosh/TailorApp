@@ -63,6 +63,17 @@
             <div class="col-md-4">
               <div class="text-muted small">Est. Days</div>
               <div class="fw-semibold">{{ order.estimated_days or '—' }}</div>
+              {% set eta = order.eta_date() %}
+              {% if eta %}
+              <div class="text-brand-orange small fw-semibold"><i class="bi bi-calendar-check me-1"></i>Ready by {{ eta }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <div class="text-muted small">Payment</div>
+              <div class="fw-semibold">{{ order.payment_method_label() }}</div>
+              <span class="badge {% if order.payment_status == 'paid' %}bg-success{% elif order.payment_status == 'unpaid' %}bg-danger{% else %}bg-warning text-dark{% endif %} small">
+                {{ order.payment_status_label() }}
+              </span>
             </div>
             <div class="col-12">
               <div class="text-muted small">Pickup Address</div>

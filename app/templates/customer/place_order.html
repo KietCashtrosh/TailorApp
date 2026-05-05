@@ -164,15 +164,21 @@
               <i class="bi bi-geo-alt-fill text-danger me-1"></i>Pickup Address <span class="text-danger">*</span>
             </label>
             <input type="text" name="pickup_address" class="form-control" id="pickupAddr"
+                   value="{{ default_pickup }}"
                    placeholder="Address where our agent should collect your fabric" required>
-            <div class="form-text">Our delivery partner will visit here to pick up fabric (and take measurements if chosen).</div>
+            <div class="form-text">
+              Our delivery partner will visit here to pick up fabric.
+              {% if default_pickup %}<span class="text-success small"><i class="bi bi-bookmark-check me-1"></i>Pre-filled from your saved address.</span>{% endif %}
+            </div>
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold">
               <i class="bi bi-geo-alt-fill text-success me-1"></i>Delivery Address <span class="text-danger">*</span>
             </label>
             <input type="text" name="delivery_address" class="form-control" id="deliveryAddr"
+                   value="{{ default_delivery }}"
                    placeholder="Address to deliver the finished clothes" required>
+            {% if default_delivery %}<div class="form-text text-success small"><i class="bi bi-bookmark-check me-1"></i>Pre-filled from your saved address.</div>{% endif %}
           </div>
           <div class="col-12">
             <div class="form-check">
@@ -182,6 +188,38 @@
               </label>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Payment Method -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <span class="badge bg-primary me-2">5</span><span class="fw-semibold">Payment Method</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex gap-3 flex-wrap">
+          <label class="d-flex align-items-center gap-3 p-3 border rounded-3 flex-fill" style="cursor:pointer;min-width:160px;">
+            <input class="form-check-input flex-shrink-0" type="radio" name="payment_method" value="cod" checked>
+            <div>
+              <div class="fw-semibold"><i class="bi bi-cash-coin me-1 text-success"></i>Cash on Delivery</div>
+              <div class="text-muted small">Pay when clothes are delivered</div>
+            </div>
+          </label>
+          <label class="d-flex align-items-center gap-3 p-3 border rounded-3 flex-fill" style="cursor:pointer;min-width:160px;">
+            <input class="form-check-input flex-shrink-0" type="radio" name="payment_method" value="online">
+            <div>
+              <div class="fw-semibold"><i class="bi bi-credit-card me-1 text-primary"></i>Online Payment</div>
+              <div class="text-muted small">Pay now via UPI / card</div>
+            </div>
+          </label>
+          <label class="d-flex align-items-center gap-3 p-3 border rounded-3 flex-fill" style="cursor:pointer;min-width:160px;">
+            <input class="form-check-input flex-shrink-0" type="radio" name="payment_method" value="cash">
+            <div>
+              <div class="fw-semibold"><i class="bi bi-wallet me-1 text-warning"></i>Cash to Tailor</div>
+              <div class="text-muted small">Pay directly at the tailor</div>
+            </div>
+          </label>
         </div>
       </div>
     </div>

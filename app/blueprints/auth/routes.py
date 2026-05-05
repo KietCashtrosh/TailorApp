@@ -27,7 +27,16 @@ def login():
         remember = bool(request.form.get('remember'))
 
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password) and user.is_active:
+        if user and user.check_password(password):
+            if not user.is_active:
+                flash('Your account has been deactivated. Contact support.', 'danger')
+                return render_template('auth/login.html', title='Sign In')
+            if user.approval_status == 'pending':
+                flash('Your account is awaiting admin approval. You will be notified once approved.', 'warning')
+                return render_template('auth/login.html', title='Sign In')
+            if user.approval_status == 'rejected':
+                flash('Your registration was not approved. Contact support for assistance.', 'danger')
+                return render_template('auth/login.html', title='Sign In')
             login_user(user, remember=remember)
             next_page = request.args.get('next')
             flash(f'Welcome back, {user.name}!', 'success')
@@ -51,7 +60,7 @@ def register():
         confirm = request.form.get('confirm_password', '')
         role = request.form.get('role', 'customer')
 
-        if role not in ('customer', 'tailor'):
+        if role not in ('customer', 'tailor', 'delivery'):
             flash('Invalid role selected.', 'danger')
             return render_template('auth/register.html', title='Register')
 
@@ -59,11 +68,19 @@ def register():
             flash('Passwords do not match.', 'danger')
             return render_template('auth/register.html', title='Register')
 
+        if len(password) < 6:
+            flash('Password must be at least 6 characters.', 'danger')
+            return render_template('auth/register.html', title='Register')
+
         if User.query.filter_by(email=email).first():
             flash('An account with that email already exists.', 'danger')
             return render_template('auth/register.html', title='Register')
 
-        user = User(name=name, email=email, phone=phone, role=role)
+        # Tailors and delivery agents start in 'pending' — admin must approve
+        approval_status = 'pending' if role in ('tailor', 'delivery') else 'approved'
+
+        user = User(name=name, email=email, phone=phone, role=role,
+                    approval_status=approval_status)
         user.set_password(password)
         db.session.add(user)
         db.session.flush()
@@ -79,7 +96,11 @@ def register():
             db.session.add(profile)
 
         db.session.commit()
-        flash('Account created! Please log in.', 'success')
+
+        if role in ('tailor', 'delivery'):
+            flash('Account created! Your application is under review — an admin will approve it shortly.', 'info')
+        else:
+            flash('Account created! Please log in.', 'success')
         return redirect(url_for('auth.login'))
 
     return render_template('auth/register.html', title='Register')

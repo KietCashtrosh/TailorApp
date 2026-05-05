@@ -2,7 +2,7 @@
 {% block title %}Register{% endblock %}
 {% block content %}
 <div class="min-vh-100 d-flex align-items-center justify-content-center py-5" style="background: linear-gradient(135deg, var(--brand-purple-dark) 0%, var(--brand-purple) 60%, #9333ea 100%);">
-  <div class="card shadow-lg border-0" style="width:100%;max-width:500px;border-radius:16px;">
+  <div class="card shadow-lg border-0" style="width:100%;max-width:520px;border-radius:16px;">
     <div class="card-body p-4 p-md-5">
       <div class="text-center mb-4">
         <span style="font-size:2.5rem;">✂️</span>
@@ -13,21 +13,32 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
           <label class="form-label fw-semibold">I am a</label>
-          <div class="d-flex gap-3">
-            <div class="form-check flex-fill border rounded-3 p-3" id="roleCustomer" style="cursor:pointer;">
+          <div class="d-flex gap-2 flex-wrap">
+            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
               <input class="form-check-input" type="radio" name="role" value="customer" id="roleC" checked>
               <label class="form-check-label w-100" for="roleC" style="cursor:pointer;">
                 <i class="bi bi-person me-1"></i><strong>Customer</strong>
                 <div class="text-muted small">I want clothes stitched</div>
               </label>
             </div>
-            <div class="form-check flex-fill border rounded-3 p-3" id="roleTailor" style="cursor:pointer;">
+            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
               <input class="form-check-input" type="radio" name="role" value="tailor" id="roleT">
               <label class="form-check-label w-100" for="roleT" style="cursor:pointer;">
                 <i class="bi bi-scissors me-1"></i><strong>Tailor</strong>
-                <div class="text-muted small">I provide stitching services</div>
+                <div class="text-muted small">I provide stitching</div>
               </label>
             </div>
+            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
+              <input class="form-check-input" type="radio" name="role" value="delivery" id="roleD">
+              <label class="form-check-label w-100" for="roleD" style="cursor:pointer;">
+                <i class="bi bi-bicycle me-1"></i><strong>Delivery</strong>
+                <div class="text-muted small">I deliver orders</div>
+              </label>
+            </div>
+          </div>
+          <!-- Shown for tailor/delivery: approval notice -->
+          <div id="approvalNotice" class="alert alert-info small mt-2 mb-0 d-none py-2">
+            <i class="bi bi-info-circle me-1"></i>Tailor and delivery accounts require admin approval before you can log in.
           </div>
         </div>
         <div class="row g-3">
@@ -82,9 +93,11 @@
 {% block extra_scripts %}
 <script>
   const tailorFields = document.getElementById('tailorFields');
+  const approvalNotice = document.getElementById('approvalNotice');
   document.querySelectorAll('input[name="role"]').forEach(r => {
     r.addEventListener('change', () => {
       tailorFields.classList.toggle('d-none', r.value !== 'tailor');
+      approvalNotice.classList.toggle('d-none', !['tailor','delivery'].includes(r.value));
     });
   });
 </script>

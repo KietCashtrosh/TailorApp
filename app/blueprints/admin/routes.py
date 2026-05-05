@@ -42,6 +42,7 @@ def dashboard():
         'total_tailors': TailorProfile.query.filter_by(is_active=True).count(),
         'total_customers': User.query.filter_by(role='customer').count(),
         'total_delivery': User.query.filter_by(role='delivery').count(),
+        'pending_approvals': User.query.filter_by(approval_status='pending').count(),
     }
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(10).all()
     return render_template('admin/dashboard.html', stats=stats, recent_orders=recent_orders)
@@ -56,7 +57,43 @@ def notifications():
         Order.status.in_(['accepted', 'ready'])
     ).count()
     new_orders = Order.query.filter_by(status='placed').count()
-    return jsonify({'unassigned': unassigned, 'new_orders': new_orders})
+    pending_approvals = User.query.filter_by(approval_status='pending').count()
+    return jsonify({'unassigned': unassigned, 'new_orders': new_orders,
+                    'pending_approvals': pending_approvals})
+
+
+# ── Approvals ──────────────────────────────────────────────
+@admin_bp.route('/approvals')
+@login_required
+@admin_required
+def approvals():
+    pending = User.query.filter_by(approval_status='pending').order_by(User.created_at.desc()).all()
+    rejected = User.query.filter_by(approval_status='rejected').order_by(User.created_at.desc()).limit(20).all()
+    return render_template('admin/approvals.html', pending=pending, rejected=rejected)
+
+
+@admin_bp.route('/approvals/<int:user_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def approve_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.approval_status = 'approved'
+    user.is_active = True
+    db.session.commit()
+    flash(f'{user.name} ({user.role}) has been approved and can now log in.', 'success')
+    return redirect(url_for('admin.approvals'))
+
+
+@admin_bp.route('/approvals/<int:user_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def reject_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.approval_status = 'rejected'
+    user.is_active = False
+    db.session.commit()
+    flash(f'{user.name}\'s registration has been rejected.', 'warning')
+    return redirect(url_for('admin.approvals'))
 
 
 # ── Orders ─────────────────────────────────────────────────
