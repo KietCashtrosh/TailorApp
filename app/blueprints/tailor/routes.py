@@ -1,11 +1,12 @@
 import json
 from datetime import datetime
 from functools import wraps
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app.blueprints.tailor import tailor_bp
 from app.extensions import db
-from app.models import Order, TailorProfile, Design, TailorMeasurementTemplate, Notification, notify
+from app.models import (Order, TailorProfile, Design, TailorMeasurementTemplate,
+                        Notification, notify, Message, generate_otp)
 
 
 def tailor_required(f):
@@ -39,13 +40,91 @@ def dashboard():
     return render_template('tailor/dashboard.html', profile=profile, stats=stats, recent=recent)
 
 
-@tailor_bp.route('/notifications')
+@tailor_bp.route('/api/notifications/count')
 @login_required
 @tailor_required
-def notifications():
-    from flask import jsonify
+def notifications_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
+
+
+@tailor_bp.route('/my-notifications')
+@login_required
+@tailor_required
+def my_notifications():
+    notifs = (Notification.query
+              .filter_by(user_id=current_user.id)
+              .order_by(Notification.created_at.desc())
+              .limit(60).all())
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return render_template('tailor/notifications.html', notifications=notifs)
+
+
+@tailor_bp.route('/orders/<int:order_id>/verify-receipt', methods=['POST'])
+@login_required
+@tailor_required
+def verify_receipt_otp(order_id):
     profile = get_tailor_profile()
-    return jsonify({'new_orders': profile.orders.filter_by(status='placed').count()})
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+    otp_entered = request.form.get('otp', '').strip()
+    if order.tailor_receipt_otp and otp_entered == order.tailor_receipt_otp:
+        order.tailor_receipt_verified = True
+        order.add_status('stitching',
+                         note='Fabric receipt OTP verified by tailor. Stitching started.',
+                         changed_by_id=current_user.id)
+        Notification.create(
+            user_id=order.customer_id,
+            title='Stitching started!',
+            body=f'{profile.shop_name} confirmed fabric receipt — your order is now being stitched.',
+            type='info',
+            order_id=order.id,
+            link=url_for('customer.order_detail', order_id=order.id),
+        )
+        db.session.commit()
+        flash('OTP verified! Stitching has started.', 'success')
+    else:
+        flash('Incorrect OTP. Ask the delivery agent for the correct code.', 'danger')
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+@tailor_bp.route('/orders/<int:order_id>/messages/send', methods=['POST'])
+@login_required
+@tailor_required
+def send_message(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+    content = request.form.get('content', '').strip()
+    if not content:
+        flash('Message cannot be empty.', 'warning')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+    msg = Message(order_id=order.id, sender_id=current_user.id, content=content)
+    db.session.add(msg)
+    notify(order.customer_id,
+           f'New message from {profile.shop_name} on order {order.order_number}.',
+           url_for('customer.order_detail', order_id=order.id))
+    db.session.commit()
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+@tailor_bp.route('/api/orders/<int:order_id>/messages')
+@login_required
+@tailor_required
+def messages_api(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+    since = request.args.get('since', 0, type=int)
+    msgs = order.messages.filter(Message.id > since).all()
+    result = []
+    for m in msgs:
+        result.append({
+            'id': m.id,
+            'sender': m.sender.name,
+            'content': m.content,
+            'time': m.created_at.strftime('%I:%M %p'),
+            'is_mine': m.sender_id == current_user.id,
+        })
+    return jsonify(result)
 
 
 @tailor_bp.route('/availability/toggle', methods=['POST'])
@@ -85,13 +164,19 @@ def order_detail(order_id):
     history = order.status_history.all()
     measurements = order.get_measurements()
 
-    # Use tailor's custom template fields if defined, otherwise fallback to global
-    tmpl = profile.get_measurement_template(order.design_id)
-    design_fields = tmpl.get_measurement_fields() if tmpl else order.design.get_measurement_fields()
+    tmpl = profile.get_measurement_template(order.design_id) if order.design_id else None
+    primary_design = order.get_primary_design()
+    if tmpl:
+        design_fields = tmpl.get_measurement_fields()
+    elif primary_design:
+        design_fields = primary_design.get_measurement_fields()
+    else:
+        design_fields = []
 
+    messages = order.messages.all()
     return render_template('tailor/order_detail.html', order=order,
                            history=history, measurements=measurements,
-                           design_fields=design_fields)
+                           design_fields=design_fields, messages=messages)
 
 
 @tailor_bp.route('/orders/<int:order_id>/update-status', methods=['POST'])
@@ -122,14 +207,41 @@ def update_order_status(order_id):
         if final_price:
             order.final_price = final_price
         elif order.design:
-            # Use tailor's custom price if set
             tmpl = profile.get_measurement_template(order.design_id)
             order.estimated_price = tmpl.effective_price() if tmpl else order.design.base_price
+        Notification.create(
+            user_id=order.customer_id,
+            title=f'Order {order.order_number} accepted!',
+            body=f'{profile.shop_name} has accepted your order.',
+            type='success',
+            order_id=order.id,
+            link=url_for('customer.order_detail', order_id=order.id),
+        )
+    elif new_status == 'rejected':
+        Notification.create(
+            user_id=order.customer_id,
+            title=f'Order {order.order_number} rejected.',
+            body=f'{profile.shop_name} could not take this order. {note}',
+            type='danger',
+            order_id=order.id,
+            link=url_for('customer.order_detail', order_id=order.id),
+        )
+    elif new_status == 'ready':
+        order.tailor_handover_otp = generate_otp()
+        Notification.create(
+            user_id=order.customer_id,
+            title=f'Order {order.order_number} is ready!',
+            body=f'Your garment is stitched and ready for delivery.',
+            type='success',
+            order_id=order.id,
+            link=url_for('customer.order_detail', order_id=order.id),
+        )
+    else:
+        notify(order.customer_id,
+               f'Order {order.order_number}: status updated to "{order.status_label()}".',
+               url_for('customer.order_detail', order_id=order.id))
 
     order.add_status(new_status, note=note, changed_by_id=current_user.id)
-    notify(order.customer_id,
-           f'Order {order.order_number}: status updated to "{order.status_label()}".',
-           url_for('customer.order_detail', order_id=order.id))
     db.session.commit()
     flash(f'Order status updated to "{order.status_label()}".', 'success')
     return redirect(url_for('tailor.order_detail', order_id=order_id))
@@ -161,19 +273,6 @@ def profile():
 
     return render_template('tailor/profile.html',
                            tailor_profile=tailor_profile, all_designs=all_designs)
-
-
-@tailor_bp.route('/my-notifications')
-@login_required
-@tailor_required
-def my_notifications():
-    notifs = (Notification.query
-              .filter_by(user_id=current_user.id)
-              .order_by(Notification.created_at.desc())
-              .limit(60).all())
-    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
-    db.session.commit()
-    return render_template('shared/notifications.html', notifications=notifs)
 
 
 # ── Measurement Templates ──────────────────────────────────

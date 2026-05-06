@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Add to Cart — {{ design.name }}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:620px;">
+  <a href="{{ url_for('customer.tailor_detail', tailor_id=tailor.id) }}" class="btn btn-sm btn-outline-secondary mb-4 rounded-pill">
+    <i class="bi bi-arrow-left me-1"></i>Back to {{ tailor.shop_name }}
+  </a>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold flex-shrink-0" style="width:52px;height:52px;font-size:1.4rem;">
+          {% if design.name == 'Blouse' %}🪡{% elif design.name == 'Lehenga' %}👗{% elif design.name == 'Shirt' %}👔{% elif design.name == 'Trouser' %}👖{% else %}✂️{% endif %}
+        </div>
+        <div>
+          <h5 class="fw-bold mb-0">{{ design.name }}</h5>
+          <div class="text-muted small"><i class="bi bi-scissors me-1"></i>{{ tailor.shop_name }} &nbsp;·&nbsp; <span class="text-brand-orange fw-semibold">₹{{ price|int }}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" action="{{ url_for('customer.cart_add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="tailor_id" value="{{ tailor.id }}">
+        <input type="hidden" name="design_id" value="{{ design.id }}">
+
+        <!-- Fabric description -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Fabric Description</label>
+          <input type="text" name="fabric_description" class="form-control rounded-3"
+                 placeholder="e.g. Cotton blue fabric, already purchased">
+        </div>
+
+        <!-- Measurements -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Measurements</label>
+          <div class="d-flex flex-column gap-2">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="measurement_preference" id="m1"
+                     value="delivery_will_measure" checked onchange="toggleMeasurements(this)">
+              <label class="form-check-label small" for="m1">
+                <i class="bi bi-person-badge me-1 text-brand-purple"></i>Delivery agent will measure
+              </label>
+            </div>
+            {% if saved_measurements %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="measurement_preference" id="m2"
+                     value="use_saved" onchange="toggleMeasurements(this)">
+              <label class="form-check-label small" for="m2">
+                <i class="bi bi-bookmark-check me-1 text-success"></i>Use saved measurements
+              </label>
+            </div>
+            {% endif %}
+            {% if fields %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="measurement_preference" id="m3"
+                     value="provided_by_customer" onchange="toggleMeasurements(this)">
+              <label class="form-check-label small" for="m3">
+                <i class="bi bi-rulers me-1 text-brand-orange"></i>Enter measurements now
+              </label>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Measurement fields (hidden by default) -->
+        {% if fields %}
+        <div id="measurementFields" class="mb-3" style="display:none;">
+          <div class="card border-0 bg-light rounded-3 p-3">
+            <div class="row g-2">
+              {% for field in fields %}
+              <div class="col-6">
+                <label class="form-label small fw-semibold mb-1">{{ field.label }} <span class="text-muted">(cm)</span></label>
+                <input type="number" name="measurement_{{ field.key }}" class="form-control form-control-sm rounded-3"
+                       step="0.1" min="0" placeholder="0.0"
+                       {% if saved_measurements %}value="{{ saved_measurements.get_measurements().get(field.key, '') }}"{% endif %}>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Special instructions -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold small">Special Instructions <span class="text-muted">(optional)</span></label>
+          <textarea name="special_instructions" class="form-control rounded-3" rows="2"
+                    placeholder="Any specific requirements, design preferences, etc."></textarea>
+        </div>
+
+        <!-- Family profile note -->
+        {% if active_family_profile %}
+        <div class="alert alert-info border-0 rounded-3 small py-2 mb-3">
+          <i class="bi bi-people me-1"></i>Ordering for <strong>{{ active_family_profile.name }}</strong>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-brand-orange w-100 rounded-pill fw-semibold py-2">
+          <i class="bi bi-cart-plus me-2"></i>Add to Cart — ₹{{ price|int }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function toggleMeasurements(radio) {
+  var el = document.getElementById('measurementFields');
+  if (el) el.style.display = radio.value === 'provided_by_customer' ? '' : 'none';
+}
+</script>
+{% endblock %}

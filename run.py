@@ -1,6 +1,7 @@
 import json
 from app import create_app, db
 from app.models import User, TailorProfile, Design
+from sqlalchemy import text, inspect
 
 app = create_app()
 
@@ -115,6 +116,52 @@ def init_db():
 
     db.session.commit()
     print('\nDatabase initialised successfully!')
+
+
+@app.cli.command('migrate-db')
+def migrate_db():
+    """Add new columns/tables introduced in the Phase 1-4 feature update (non-destructive)."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+
+        # Create any entirely new tables (family_profiles, password_reset_tokens, order_items, messages)
+        db.create_all()
+        print('New tables created (if not existing).')
+
+        # Add new columns to 'orders' if they don't exist
+        orders_cols = {c['name'] for c in inspector.get_columns('orders')}
+        order_additions = [
+            ('family_profile_id', 'INTEGER REFERENCES family_profiles(id)'),
+            ('tailor_receipt_otp', "VARCHAR(6) DEFAULT ''"),
+            ('tailor_receipt_verified', 'BOOLEAN DEFAULT 0'),
+            ('tailor_handover_otp', "VARCHAR(6) DEFAULT ''"),
+            ('tailor_handover_verified', 'BOOLEAN DEFAULT 0'),
+        ]
+        for col, typedef in order_additions:
+            if col not in orders_cols:
+                db.session.execute(text(f'ALTER TABLE orders ADD COLUMN {col} {typedef}'))
+                print(f'  orders.{col} added.')
+
+        # Make design_id nullable on SQLite: note SQLite doesn't support ALTER COLUMN,
+        # but since design_id already exists with a value in all existing rows,
+        # we just add the new foreign-key columns and the ORM will treat it as nullable.
+
+        # Add new columns to 'notifications' if they don't exist
+        notif_cols = {c['name'] for c in inspector.get_columns('notifications')}
+        notif_additions = [
+            ('title', "VARCHAR(200) DEFAULT ''"),
+            ('body', "TEXT DEFAULT ''"),
+            ('type', "VARCHAR(20) DEFAULT 'info'"),
+            ('order_id', 'INTEGER REFERENCES orders(id)'),
+        ]
+        for col, typedef in notif_additions:
+            if col not in notif_cols:
+                db.session.execute(text(f'ALTER TABLE notifications ADD COLUMN {col} {typedef}'))
+                print(f'  notifications.{col} added.')
+
+        db.session.commit()
+        print('Migration complete.')
 
 
 if __name__ == '__main__':

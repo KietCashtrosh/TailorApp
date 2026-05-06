@@ -5,7 +5,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app.blueprints.delivery import delivery_bp
 from app.extensions import db
-from app.models import DeliveryAssignment, Order, CustomerMeasurement, TailorMeasurementTemplate
+from app.models import DeliveryAssignment, Order, CustomerMeasurement, TailorMeasurementTemplate, generate_otp
 
 
 def delivery_required(f):
@@ -96,6 +96,8 @@ def verify_otp(assignment_id):
             assignment.status = 'picked_up'
             order = assignment.order
             if assignment.assignment_type == 'pickup_fabric':
+                # Generate tailor receipt OTP — tailor verifies when agent drops fabric
+                order.tailor_receipt_otp = generate_otp()
                 order.add_status('fabric_collected',
                                  note='Fabric collected — OTP verified.',
                                  changed_by_id=current_user.id)
@@ -103,6 +105,21 @@ def verify_otp(assignment_id):
             flash('OTP verified! Pickup confirmed.', 'success')
         else:
             flash('Incorrect OTP. Please ask the customer/tailor for the correct code.', 'danger')
+
+    elif action == 'tailor_handover':
+        # Delivery agent picks up finished garment from tailor — verifies tailor's handover OTP
+        order = assignment.order
+        if otp_entered == order.tailor_handover_otp and order.tailor_handover_otp:
+            order.tailor_handover_verified = True
+            assignment.pickup_otp_verified = True
+            assignment.status = 'picked_up'
+            order.add_status('out_for_delivery',
+                             note='Garment picked up from tailor — out for delivery.',
+                             changed_by_id=current_user.id)
+            db.session.commit()
+            flash('Tailor handover OTP verified! Now deliver to customer.', 'success')
+        else:
+            flash('Incorrect handover OTP. Ask the tailor for the correct code.', 'danger')
 
     elif action == 'deliver':
         if otp_entered == assignment.delivery_otp:

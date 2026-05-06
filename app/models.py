@@ -1,7 +1,8 @@
 import json
 import random
+import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
@@ -24,6 +25,8 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     tailor_profile = db.relationship('TailorProfile', backref='user', uselist=False)
+    family_profiles = db.relationship('FamilyProfile', backref='user', lazy='dynamic',
+                                      foreign_keys='FamilyProfile.user_id')
     customer_orders = db.relationship(
         'Order', foreign_keys='Order.customer_id', backref='customer', lazy='dynamic'
     )
@@ -42,6 +45,61 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.email} [{self.role}]>'
+
+
+class FamilyProfile(db.Model):
+    __tablename__ = 'family_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    relation = db.Column(db.String(50), default='')   # Self, Spouse, Child, Parent, etc.
+    gender = db.Column(db.String(10), default='')
+    date_of_birth = db.Column(db.String(20), default='')
+    avatar_color = db.Column(db.String(20), default='#6f42c1')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def initials(self):
+        parts = self.name.strip().split()
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[-1][0]).upper()
+        return self.name[:2].upper() if self.name else '?'
+
+    def __repr__(self):
+        return f'<FamilyProfile {self.name} user={self.user_id}>'
+
+
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref='reset_tokens')
+
+    @staticmethod
+    def create_for_user(user):
+        # Invalidate existing tokens
+        PasswordResetToken.query.filter_by(user_id=user.id, used=False).update({'used': True})
+        token = secrets.token_urlsafe(32)
+        prt = PasswordResetToken(
+            user_id=user.id,
+            token=token,
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+        )
+        db.session.add(prt)
+        return prt
+
+    @property
+    def is_valid(self):
+        return not self.used and datetime.utcnow() < self.expires_at
+
+    def __repr__(self):
+        return f'<PasswordResetToken user={self.user_id} used={self.used}>'
 
 
 class TailorProfile(db.Model):
@@ -241,7 +299,12 @@ class Order(db.Model):
                              default=generate_order_number)
     customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
-    design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
+    design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=True)
+    family_profile_id = db.Column(db.Integer, db.ForeignKey('family_profiles.id'), nullable=True)
+    tailor_receipt_otp = db.Column(db.String(6), default='')
+    tailor_receipt_verified = db.Column(db.Boolean, default=False)
+    tailor_handover_otp = db.Column(db.String(6), default='')
+    tailor_handover_verified = db.Column(db.Boolean, default=False)
     measurements = db.Column(db.Text, default='{}')
     measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
     special_instructions = db.Column(db.Text, default='')
@@ -262,6 +325,7 @@ class Order(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     design = db.relationship('Design')
+    family_profile = db.relationship('FamilyProfile', foreign_keys=[family_profile_id])
     coupon = db.relationship('Coupon', foreign_keys=[coupon_code],
                              primaryjoin='Order.coupon_code == Coupon.code',
                              backref='orders', uselist=False)
@@ -272,6 +336,9 @@ class Order(db.Model):
     delivery_assignments = db.relationship(
         'DeliveryAssignment', backref='order', lazy='dynamic'
     )
+    order_items = db.relationship('OrderItem', backref='order', lazy='dynamic')
+    messages = db.relationship('Message', backref='order', lazy='dynamic',
+                               order_by='Message.created_at')
     review = db.relationship('Review', backref='order', uselist=False)
 
     def get_measurements(self):
@@ -280,8 +347,28 @@ class Order(db.Model):
         except Exception:
             return {}
 
+    def is_multi_item(self):
+        return self.design_id is None and self.order_items.count() > 0
+
+    def display_design_name(self):
+        if self.is_multi_item():
+            count = self.order_items.count()
+            return f'{count} item order'
+        return self.design.name if self.design else 'Custom Order'
+
+    def get_primary_design(self):
+        if self.design:
+            return self.design
+        first = self.order_items.first()
+        return first.design if first else None
+
+    def items_subtotal(self):
+        if self.is_multi_item():
+            return sum(item.subtotal for item in self.order_items.all())
+        return self.final_price or self.estimated_price or 0
+
     def payable_amount(self):
-        base = self.final_price or self.estimated_price or 0
+        base = self.items_subtotal()
         return max(0, base - (self.discount_amount or 0))
 
     def eta_date(self):
@@ -366,6 +453,50 @@ class DeliveryAssignment(db.Model):
         return f'<DeliveryAssignment order={self.order_id} type={self.assignment_type}>'
 
 
+class OrderItem(db.Model):
+    __tablename__ = 'order_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
+    fabric_description = db.Column(db.Text, default='')
+    measurements = db.Column(db.Text, default='{}')
+    special_instructions = db.Column(db.Text, default='')
+    unit_price = db.Column(db.Float, default=0)
+
+    design = db.relationship('Design')
+
+    @property
+    def subtotal(self):
+        return self.unit_price * self.quantity
+
+    def get_measurements(self):
+        try:
+            return json.loads(self.measurements)
+        except Exception:
+            return {}
+
+    def __repr__(self):
+        return f'<OrderItem order={self.order_id} design={self.design_id}>'
+
+
+class Message(db.Model):
+    __tablename__ = 'messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender = db.relationship('User', foreign_keys=[sender_id])
+
+    def __repr__(self):
+        return f'<Message order={self.order_id} sender={self.sender_id}>'
+
+
 class CustomerMeasurement(db.Model):
     __tablename__ = 'customer_measurements'
 
@@ -428,10 +559,36 @@ class Notification(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     link = db.Column(db.String(300), default='')
+    # Extended fields for richer notifications
+    title = db.Column(db.String(200), default='')
+    body = db.Column(db.Text, default='')
+    type = db.Column(db.String(20), default='info')   # info | success | warning | danger
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='notifications')
+
+    def display_title(self):
+        return self.title or self.message
+
+    def display_body(self):
+        return self.body or ''
+
+    @staticmethod
+    def create(user_id, title, body='', type='info', order_id=None, link=''):
+        """Create a rich notification with title + body."""
+        n = Notification(
+            user_id=user_id,
+            message=title,
+            link=link,
+            title=title,
+            body=body,
+            type=type,
+            order_id=order_id,
+        )
+        db.session.add(n)
+        return n
 
     def __repr__(self):
         return f'<Notification user={self.user_id} read={self.is_read}>'
@@ -439,7 +596,7 @@ class Notification(db.Model):
 
 def notify(user_id, message, link=''):
     """Add an unread notification for a user. Caller must commit the session."""
-    n = Notification(user_id=user_id, message=message, link=link)
+    n = Notification(user_id=user_id, message=message, link=link, title=message)
     db.session.add(n)
 
 

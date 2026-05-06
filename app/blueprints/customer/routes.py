@@ -1,12 +1,13 @@
 import json
 import math
 from functools import wraps
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import render_template, redirect, url_for, flash, request, jsonify, session
 from flask_login import login_required, current_user
 from app.blueprints.customer import customer_bp
 from app.extensions import db
 from app.models import (TailorProfile, Design, Order, CustomerMeasurement,
-                        Coupon, Review, CartItem, Notification, notify, generate_order_number)
+                        Coupon, Review, CartItem, Notification, notify,
+                        FamilyProfile, Message, generate_order_number)
 
 
 def customer_required(f):
@@ -26,6 +27,106 @@ def haversine(lat1, lon1, lat2, lon2):
     dlambda = math.radians(lon2 - lon1)
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def get_active_profile():
+    """Return the currently active FamilyProfile for the logged-in customer, or None."""
+    profile_id = session.get('active_profile_id')
+    if profile_id and current_user.is_authenticated:
+        return FamilyProfile.query.filter_by(id=profile_id, user_id=current_user.id).first()
+    return None
+
+
+# ── Family Profiles ──────────────────────────────────────────
+
+@customer_bp.route('/profiles')
+@login_required
+@customer_required
+def profiles():
+    all_profiles = FamilyProfile.query.filter_by(user_id=current_user.id).order_by(FamilyProfile.created_at).all()
+    active = get_active_profile()
+    return render_template('customer/profiles.html', profiles=all_profiles, active_profile=active)
+
+
+@customer_bp.route('/profiles/select')
+@login_required
+@customer_required
+def select_profile():
+    all_profiles = FamilyProfile.query.filter_by(user_id=current_user.id).order_by(FamilyProfile.created_at).all()
+    active = get_active_profile()
+    return render_template('customer/select_profile.html', profiles=all_profiles, active_profile=active)
+
+
+@customer_bp.route('/profiles/new', methods=['GET', 'POST'])
+@login_required
+@customer_required
+def profile_new():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        relation = request.form.get('relation', '').strip()
+        gender = request.form.get('gender', '').strip()
+        date_of_birth = request.form.get('date_of_birth', '').strip()
+        avatar_color = request.form.get('avatar_color', '#6f42c1').strip()
+        if not name:
+            flash('Name is required.', 'danger')
+            return render_template('customer/profile_form.html', profile=None)
+        fp = FamilyProfile(user_id=current_user.id, name=name, relation=relation,
+                           gender=gender, date_of_birth=date_of_birth, avatar_color=avatar_color)
+        db.session.add(fp)
+        db.session.commit()
+        flash(f'Profile for {name} created.', 'success')
+        return redirect(url_for('customer.profiles'))
+    return render_template('customer/profile_form.html', profile=None)
+
+
+@customer_bp.route('/profiles/<int:profile_id>/edit', methods=['GET', 'POST'])
+@login_required
+@customer_required
+def profile_edit(profile_id):
+    fp = FamilyProfile.query.filter_by(id=profile_id, user_id=current_user.id).first_or_404()
+    if request.method == 'POST':
+        fp.name = request.form.get('name', fp.name).strip()
+        fp.relation = request.form.get('relation', fp.relation).strip()
+        fp.gender = request.form.get('gender', fp.gender).strip()
+        fp.date_of_birth = request.form.get('date_of_birth', fp.date_of_birth).strip()
+        fp.avatar_color = request.form.get('avatar_color', fp.avatar_color).strip()
+        db.session.commit()
+        flash('Profile updated.', 'success')
+        return redirect(url_for('customer.profiles'))
+    return render_template('customer/profile_form.html', profile=fp)
+
+
+@customer_bp.route('/profiles/<int:profile_id>/delete', methods=['POST'])
+@login_required
+@customer_required
+def profile_delete(profile_id):
+    fp = FamilyProfile.query.filter_by(id=profile_id, user_id=current_user.id).first_or_404()
+    if session.get('active_profile_id') == profile_id:
+        session.pop('active_profile_id', None)
+    db.session.delete(fp)
+    db.session.commit()
+    flash('Profile deleted.', 'info')
+    return redirect(url_for('customer.profiles'))
+
+
+@customer_bp.route('/profiles/<int:profile_id>/activate', methods=['POST'])
+@login_required
+@customer_required
+def profile_activate(profile_id):
+    fp = FamilyProfile.query.filter_by(id=profile_id, user_id=current_user.id).first_or_404()
+    session['active_profile_id'] = fp.id
+    flash(f'Ordering as {fp.name}.', 'success')
+    next_url = request.form.get('next') or url_for('customer.home')
+    return redirect(next_url)
+
+
+@customer_bp.route('/profiles/clear', methods=['POST'])
+@login_required
+@customer_required
+def profile_clear():
+    session.pop('active_profile_id', None)
+    flash('Switched to ordering for yourself.', 'info')
+    return redirect(request.referrer or url_for('customer.home'))
 
 
 @customer_bp.route('/')
@@ -242,13 +343,20 @@ def order_detail(order_id):
     order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
     history = order.status_history.all()
     measurements = order.get_measurements()
-    tmpl = order.tailor.get_measurement_template(order.design_id)
-    design_fields = tmpl.get_measurement_fields() if tmpl else order.design.get_measurement_fields()
-    # Get active assignments for OTP display
+    primary_design = order.get_primary_design()
+    tmpl = order.tailor.get_measurement_template(order.design_id) if order.design_id else None
+    if tmpl:
+        design_fields = tmpl.get_measurement_fields()
+    elif primary_design:
+        design_fields = primary_design.get_measurement_fields()
+    else:
+        design_fields = []
     assignments = order.delivery_assignments.all()
+    messages = order.messages.all()
     return render_template('customer/order_detail.html', order=order,
                            history=history, measurements=measurements,
-                           design_fields=design_fields, assignments=assignments)
+                           design_fields=design_fields, assignments=assignments,
+                           messages=messages)
 
 
 @customer_bp.route('/orders/<int:order_id>/review', methods=['GET', 'POST'])
@@ -385,10 +493,22 @@ def cart():
                            default_delivery=current_user.default_delivery_address or '')
 
 
-@customer_bp.route('/cart/add', methods=['POST'])
+@customer_bp.route('/cart/add', methods=['GET', 'POST'])
 @login_required
 @customer_required
 def cart_add():
+    if request.method == 'GET':
+        tailor_id = request.args.get('tailor_id', type=int)
+        design_id = request.args.get('design_id', type=int)
+        tailor = TailorProfile.query.filter_by(id=tailor_id, is_active=True).first_or_404()
+        design = Design.query.filter_by(id=design_id, is_active=True).first_or_404()
+        tmpl = tailor.get_measurement_template(design_id)
+        fields = tmpl.get_measurement_fields() if tmpl else design.get_measurement_fields()
+        price = tmpl.effective_price() if tmpl else design.base_price
+        saved = CustomerMeasurement.query.filter_by(
+            customer_id=current_user.id, design_id=design_id).first()
+        return render_template('customer/cart_add.html', tailor=tailor, design=design,
+                               fields=fields, price=price, saved_measurements=saved)
     tailor_id = request.form.get('tailor_id', type=int)
     design_id = request.form.get('design_id', type=int)
     fabric_description = request.form.get('fabric_description', '').strip()
@@ -531,7 +651,54 @@ def my_notifications():
               .limit(60).all())
     Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
     db.session.commit()
-    return render_template('shared/notifications.html', notifications=notifs)
+    return render_template('customer/notifications.html', notifications=notifs)
+
+
+@customer_bp.route('/api/notifications/count')
+@login_required
+@customer_required
+def notifications_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    cart_count = CartItem.query.filter_by(customer_id=current_user.id).count()
+    return jsonify({'count': count, 'cart_count': cart_count})
+
+
+@customer_bp.route('/orders/<int:order_id>/messages/send', methods=['POST'])
+@login_required
+@customer_required
+def send_message(order_id):
+    order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
+    content = request.form.get('content', '').strip()
+    if not content:
+        flash('Message cannot be empty.', 'warning')
+        return redirect(url_for('customer.order_detail', order_id=order_id))
+    msg = Message(order_id=order.id, sender_id=current_user.id, content=content)
+    db.session.add(msg)
+    # Notify tailor
+    notify(order.tailor.user_id,
+           f'New message from {current_user.name} on order {order.order_number}.',
+           url_for('tailor.order_detail', order_id=order.id))
+    db.session.commit()
+    return redirect(url_for('customer.order_detail', order_id=order_id))
+
+
+@customer_bp.route('/api/orders/<int:order_id>/messages')
+@login_required
+@customer_required
+def messages_api(order_id):
+    order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
+    since = request.args.get('since', 0, type=int)
+    msgs = order.messages.filter(Message.id > since).all()
+    result = []
+    for m in msgs:
+        result.append({
+            'id': m.id,
+            'sender': m.sender.name,
+            'content': m.content,
+            'time': m.created_at.strftime('%I:%M %p'),
+            'is_mine': m.sender_id == current_user.id,
+        })
+    return jsonify(result)
 
 
 def _save_measurements(customer_id, design_id, measurements_dict, taken_by_id=None):

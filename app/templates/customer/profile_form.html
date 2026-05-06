@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if profile else 'Add' }} Family Profile{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:520px;">
+  <a href="{{ url_for('customer.profiles') }}" class="btn btn-sm btn-outline-secondary mb-4 rounded-pill">
+    <i class="bi bi-arrow-left me-1"></i>Back to Profiles
+  </a>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+      <h5 class="fw-bold mb-4">{{ 'Edit Profile' if profile else 'New Family Profile' }}</h5>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Avatar preview -->
+        <div class="text-center mb-4">
+          <div id="avatarPreview" class="rounded-circle d-inline-flex align-items-center justify-content-center text-white fw-bold"
+               style="width:72px;height:72px;font-size:1.5rem;background:{{ profile.avatar_color if profile else '#6f42c1' }};">
+            <span id="initialsPreview">{{ profile.initials() if profile else '?' }}</span>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" id="nameInput" class="form-control rounded-3"
+                 value="{{ profile.name if profile else '' }}" placeholder="e.g. Priya Sharma" required autofocus>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Relation</label>
+            <select name="relation" class="form-select rounded-3">
+              <option value="">— Select —</option>
+              {% for r in ['Self', 'Spouse', 'Child', 'Parent', 'Sibling', 'Other'] %}
+              <option value="{{ r }}" {% if profile and profile.relation == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Gender</label>
+            <select name="gender" class="form-select rounded-3">
+              <option value="">— Select —</option>
+              {% for g in ['Male', 'Female', 'Other'] %}
+              <option value="{{ g }}" {% if profile and profile.gender == g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Date of Birth</label>
+          <input type="date" name="date_of_birth" class="form-control rounded-3"
+                 value="{{ profile.date_of_birth if profile else '' }}">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold small">Avatar Colour</label>
+          <div class="d-flex gap-2 flex-wrap">
+            {% for color in ['#6f42c1','#e97316','#0ea5e9','#10b981','#ef4444','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#64748b'] %}
+            <input type="radio" name="avatar_color" value="{{ color }}" id="c{{ loop.index }}"
+                   class="d-none color-radio"
+                   {% if (profile and profile.avatar_color == color) or (not profile and color == '#6f42c1') %}checked{% endif %}>
+            <label for="c{{ loop.index }}" class="rounded-circle cursor-pointer color-swatch"
+                   style="width:32px;height:32px;background:{{ color }};cursor:pointer;border:3px solid transparent;"
+                   title="{{ color }}"></label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-brand-purple w-100 rounded-pill fw-semibold py-2">
+          <i class="bi bi-check-circle me-2"></i>{{ 'Save Changes' if profile else 'Create Profile' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+var nameInput = document.getElementById('nameInput');
+var initialsEl = document.getElementById('initialsPreview');
+var avatarEl = document.getElementById('avatarPreview');
+
+function getInitials(name) {
+  var parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+  return name.substring(0,2).toUpperCase() || '?';
+}
+
+nameInput.addEventListener('input', function() {
+  initialsEl.textContent = getInitials(this.value) || '?';
+});
+
+document.querySelectorAll('.color-radio').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    if (this.checked) avatarEl.style.background = this.value;
+  });
+});
+
+// Mark selected swatch
+document.querySelectorAll('.color-swatch').forEach(function(label) {
+  label.addEventListener('click', function() {
+    document.querySelectorAll('.color-swatch').forEach(function(l) {
+      l.style.border = '3px solid transparent';
+    });
+    this.style.border = '3px solid #333';
+  });
+});
+
+// Highlight currently selected
+var checked = document.querySelector('.color-radio:checked');
+if (checked) {
+  var label = document.querySelector('label[for="' + checked.id + '"]');
+  if (label) label.style.border = '3px solid #333';
+}
+</script>
+{% endblock %}

@@ -27,21 +27,37 @@ def create_app(config_class=Config):
     app.register_blueprint(delivery_bp, url_prefix='/delivery')
     app.register_blueprint(customer_bp, url_prefix='/')
 
-    from app.models import User, Notification
+    from app.models import User, Notification, CartItem, FamilyProfile
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
 
     @app.context_processor
-    def inject_notif_count():
+    def inject_globals():
+        from flask import session
         from flask_login import current_user
-        count = 0
+        unread_notif_count = 0
+        cart_count = 0
+        active_family_profile = None
         if current_user.is_authenticated:
-            count = Notification.query.filter_by(
+            unread_notif_count = Notification.query.filter_by(
                 user_id=current_user.id, is_read=False
             ).count()
-        return {'unread_notif_count': count}
+            if current_user.role == 'customer':
+                cart_count = CartItem.query.filter_by(
+                    customer_id=current_user.id
+                ).count()
+                profile_id = session.get('active_profile_id')
+                if profile_id:
+                    active_family_profile = FamilyProfile.query.filter_by(
+                        id=profile_id, user_id=current_user.id
+                    ).first()
+        return {
+            'unread_notif_count': unread_notif_count,
+            'cart_count': cart_count,
+            'active_family_profile': active_family_profile,
+        }
 
     @app.errorhandler(404)
     def not_found(e):

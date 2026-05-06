@@ -5,6 +5,11 @@
   <a href="{{ url_for('tailor.orders') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
   <h4 class="fw-bold mb-0">Order <code>{{ order.order_number }}</code></h4>
   <span class="badge bg-{{ order.status_badge() }} fs-6">{{ order.status_label() }}</span>
+  {% if order.family_profile %}
+  <span class="badge rounded-pill text-white" style="background:{{ order.family_profile.avatar_color }};">
+    <i class="bi bi-person me-1"></i>{{ order.family_profile.name }}
+  </span>
+  {% endif %}
 </div>
 
 <div class="row g-4">
@@ -21,8 +26,10 @@
           </div>
           <div class="col-md-6">
             <div class="text-muted small">Design</div>
-            <div class="fw-semibold">{{ order.design.name }}</div>
-            <div class="small text-muted">Base price: ₹{{ order.design.base_price }}</div>
+            <div class="fw-semibold">{{ order.display_design_name() }}</div>
+            {% if order.design %}
+            <div class="small text-muted">Base: ₹{{ order.design.base_price }}</div>
+            {% endif %}
           </div>
           <div class="col-md-6">
             <div class="text-muted small">Pickup Address (Fabric)</div>
@@ -46,7 +53,7 @@
           {% endif %}
           <div class="col-md-4">
             <div class="text-muted small">Estimated Price</div>
-            <div class="fw-semibold">₹{{ order.estimated_price or '—' }}</div>
+            <div class="fw-semibold">₹{{ order.items_subtotal()|int }}</div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Final Price</div>
@@ -56,12 +63,10 @@
             <div class="text-muted small">Est. Days</div>
             <div class="fw-semibold">{{ order.estimated_days or '—' }}</div>
             {% set eta = order.eta_date() %}
-            {% if eta %}
-            <div class="text-brand-orange small fw-semibold"><i class="bi bi-calendar-check me-1"></i>Ready by {{ eta }}</div>
-            {% endif %}
+            {% if eta %}<div class="text-brand-orange small fw-semibold"><i class="bi bi-calendar-check me-1"></i>Ready by {{ eta }}</div>{% endif %}
           </div>
           <div class="col-md-4">
-            <div class="text-muted small">Payment Method</div>
+            <div class="text-muted small">Payment</div>
             <div class="fw-semibold">{{ order.payment_method_label() }}</div>
           </div>
           <div class="col-md-4">
@@ -74,7 +79,66 @@
       </div>
     </div>
 
+    <!-- Multi-item order items list -->
+    {% if order.is_multi_item() %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2"></i>Order Items</div>
+      <div class="card-body p-0">
+        {% for item in order.order_items.all() %}
+        <div class="d-flex align-items-center gap-3 p-3 {% if not loop.last %}border-bottom{% endif %}">
+          <span style="font-size:1.5rem;">
+            {% if item.design.name == 'Blouse' %}🪡{% elif item.design.name == 'Lehenga' %}👗{% elif item.design.name == 'Shirt' %}👔{% elif item.design.name == 'Trouser' %}👖{% else %}✂️{% endif %}
+          </span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ item.design.name }}</div>
+            {% if item.fabric_description %}<div class="text-muted small">{{ item.fabric_description }}</div>{% endif %}
+          </div>
+          <div class="text-end">
+            <div class="fw-semibold text-brand-orange">₹{{ item.unit_price|int }}</div>
+            {% if item.quantity > 1 %}<div class="text-muted small">× {{ item.quantity }}</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Tailor Receipt OTP verification (when fabric has arrived from delivery) -->
+    {% if order.status == 'fabric_collected' and order.tailor_receipt_otp and not order.tailor_receipt_verified %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-warning">
+      <div class="card-header bg-warning bg-opacity-10 fw-semibold py-3">
+        <i class="bi bi-shield-lock me-2"></i>Verify Fabric Receipt OTP
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">The delivery agent has dropped your fabric. Enter the OTP they provide to confirm receipt and start stitching.</p>
+        <form method="POST" action="{{ url_for('tailor.verify_receipt_otp', order_id=order.id) }}" class="d-flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="text" name="otp" class="form-control form-control-lg fw-bold text-center rounded-3"
+                 placeholder="6-digit OTP" maxlength="6" pattern="\d{6}" required style="max-width:180px;letter-spacing:.3em;">
+          <button type="submit" class="btn btn-warning fw-semibold px-4 rounded-pill">
+            <i class="bi bi-check-circle me-1"></i>Verify & Start Stitching
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Tailor Handover OTP display (when garment is ready for delivery pickup) -->
+    {% if order.status == 'ready' and order.tailor_handover_otp %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-success">
+      <div class="card-header bg-success bg-opacity-10 fw-semibold py-3">
+        <i class="bi bi-qr-code me-2"></i>Handover OTP — Show to Delivery Agent
+      </div>
+      <div class="card-body text-center">
+        <p class="text-muted small mb-2">Share this OTP with the delivery agent when they come to pick up the finished garment.</p>
+        <div class="display-4 fw-bold text-success letter-spacing-3" style="letter-spacing:.3em;">{{ order.tailor_handover_otp }}</div>
+        <div class="text-muted small mt-1">Handover OTP — valid until pickup</div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Measurements -->
+    {% if design_fields %}
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Measurements</div>
       <div class="card-body">
@@ -88,10 +152,11 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
     <!-- Status Update Actions -->
-    {% if order.status in ['placed', 'fabric_collected', 'stitching'] %}
-    <div class="card border-0 shadow-sm border-start border-4 border-info">
+    {% if order.status in ['placed', 'stitching'] %}
+    <div class="card border-0 shadow-sm border-start border-4 border-info mb-4">
       <div class="card-header bg-white fw-semibold py-3">Update Order Status</div>
       <div class="card-body">
         <form method="POST" action="{{ url_for('tailor.update_order_status', order_id=order.id) }}">
@@ -100,7 +165,7 @@
             {% if order.status == 'placed' %}
             <div class="col-12">
               <div class="alert alert-warning mb-3">
-                <strong>New order waiting!</strong> Accept to begin stitching or reject if you cannot take this order.
+                <strong>New order waiting!</strong> Accept or reject this order.
               </div>
               <div class="row g-2">
                 <div class="col-md-4">
@@ -114,16 +179,16 @@
               </div>
             </div>
             <div class="col-12">
-              <label class="form-label small fw-semibold">Note for customer <span class="text-muted">(optional for acceptance)</span></label>
+              <label class="form-label small fw-semibold">Note <span class="text-muted">(optional for acceptance)</span></label>
               <input type="text" name="note" id="orderNote" class="form-control" placeholder="e.g. I'll start right away!">
             </div>
             <div class="col-12" id="rejectReasonBox" style="display:none;">
               <div class="alert alert-warning py-2 small mb-2">
-                <i class="bi bi-exclamation-triangle me-1"></i>Please give the customer a reason so they can place their order elsewhere.
+                <i class="bi bi-exclamation-triangle me-1"></i>Please give the customer a reason for rejection.
               </div>
             </div>
             <div class="col-auto">
-              <button type="submit" name="status" value="accepted" class="btn btn-success" id="acceptBtn">
+              <button type="submit" name="status" value="accepted" class="btn btn-success">
                 <i class="bi bi-check-lg me-1"></i>Accept Order
               </button>
             </div>
@@ -136,16 +201,6 @@
               </button>
             </div>
 
-            {% elif order.status == 'fabric_collected' %}
-            <div class="col-12">
-              <div class="alert alert-info mb-3">Fabric has been collected. Start stitching when ready.</div>
-              <label class="form-label small fw-semibold">Note</label>
-              <input type="text" name="note" class="form-control" placeholder="e.g. Started stitching">
-            </div>
-            <div class="col-auto">
-              <button type="submit" name="status" value="stitching" class="btn btn-brand"><i class="bi bi-scissors me-1"></i>Start Stitching</button>
-            </div>
-
             {% elif order.status == 'stitching' %}
             <div class="col-12">
               <div class="alert alert-success mb-3">Mark as ready when stitching is complete.</div>
@@ -153,11 +208,47 @@
               <input type="text" name="note" class="form-control" placeholder="e.g. Clothes are ready for pickup">
             </div>
             <div class="col-auto">
-              <button type="submit" name="status" value="ready" class="btn btn-success"><i class="bi bi-bag-check me-1"></i>Mark as Ready</button>
+              <button type="submit" name="status" value="ready" class="btn btn-success">
+                <i class="bi bi-bag-check me-1"></i>Mark as Ready
+              </button>
             </div>
             {% endif %}
           </div>
         </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Chat Panel -->
+    {% if order.status not in ['placed', 'rejected', 'cancelled'] %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
+        <i class="bi bi-chat-dots text-brand-purple"></i>Chat with Customer
+      </div>
+      <div class="card-body p-0">
+        <div id="chatMessages" style="max-height:320px;overflow-y:auto;padding:1rem;">
+          {% for m in messages %}
+          <div class="d-flex {% if m.sender_id == current_user.id %}justify-content-end{% endif %} mb-2">
+            <div class="rounded-3 px-3 py-2 shadow-sm" style="max-width:75%;{% if m.sender_id == current_user.id %}background:#6f42c1;color:#fff;{% else %}background:#f8f9fa;{% endif %}">
+              {% if m.sender_id != current_user.id %}<div class="fw-semibold small mb-1" style="font-size:.7rem;">{{ m.sender.name }}</div>{% endif %}
+              <div class="small">{{ m.content }}</div>
+              <div style="font-size:.65rem;opacity:.7;margin-top:2px;text-align:right;">{{ m.created_at.strftime('%I:%M %p') }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="border-top p-3">
+          <form method="POST" action="{{ url_for('tailor.send_message', order_id=order.id) }}" id="chatForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="d-flex gap-2">
+              <input type="text" name="content" id="chatInput" class="form-control rounded-pill"
+                     placeholder="Type a message…" autocomplete="off" required>
+              <button type="submit" class="btn btn-brand-purple rounded-pill px-3">
+                <i class="bi bi-send"></i>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
     {% endif %}
@@ -190,7 +281,7 @@ const rejectConfirmBtn = document.getElementById('rejectConfirmBtn');
 const rejectReasonBox = document.getElementById('rejectReasonBox');
 const noteInput = document.getElementById('orderNote');
 if (rejectBtn) {
-  rejectBtn.addEventListener('click', () => {
+  rejectBtn.addEventListener('click', function() {
     rejectReasonBox.style.display = 'block';
     rejectBtn.classList.add('d-none');
     rejectConfirmBtn.classList.remove('d-none');
@@ -198,6 +289,42 @@ if (rejectBtn) {
     noteInput.required = true;
     noteInput.focus();
   });
+}
+
+// Chat polling
+var chatEl = document.getElementById('chatMessages');
+if (chatEl) {
+  var lastId = 0;
+  var allMsgs = chatEl.querySelectorAll('[data-msg-id]');
+  if (allMsgs.length) lastId = parseInt(allMsgs[allMsgs.length-1].dataset.msgId) || 0;
+
+  function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+  scrollBottom();
+
+  function pollMessages() {
+    fetch('{{ url_for("tailor.messages_api", order_id=order.id) }}?since=' + lastId, {credentials:'same-origin'})
+      .then(function(r) { return r.ok ? r.json() : []; })
+      .then(function(msgs) {
+        msgs.forEach(function(m) {
+          if (m.id > lastId) {
+            lastId = m.id;
+            var align = m.is_mine ? 'justify-content-end' : '';
+            var bubble = m.is_mine
+              ? '<div class="rounded-3 px-3 py-2 shadow-sm" style="max-width:75%;background:#6f42c1;color:#fff;">'
+              : '<div class="rounded-3 px-3 py-2 shadow-sm bg-light" style="max-width:75%;">';
+            var senderLine = m.is_mine ? '' : '<div class="fw-semibold small mb-1" style="font-size:.7rem;">' + m.sender + '</div>';
+            var html = '<div class="d-flex ' + align + ' mb-2" data-msg-id="' + m.id + '">'
+              + bubble + senderLine
+              + '<div class="small">' + m.content + '</div>'
+              + '<div style="font-size:.65rem;opacity:.7;margin-top:2px;text-align:right;">' + m.time + '</div>'
+              + '</div></div>';
+            chatEl.insertAdjacentHTML('beforeend', html);
+            scrollBottom();
+          }
+        });
+      }).catch(function() {});
+  }
+  setInterval(pollMessages, 5000);
 }
 </script>
 {% endblock %}

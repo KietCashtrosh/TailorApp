@@ -24,7 +24,7 @@
         <div class="row g-3">
           <div class="col-12">
             <div class="text-muted small">Order</div>
-            <div class="fw-semibold"><code>{{ assignment.order.order_number }}</code> — {{ assignment.order.design.name }}</div>
+            <div class="fw-semibold"><code>{{ assignment.order.order_number }}</code> — {{ assignment.order.display_design_name() }}</div>
           </div>
           <div class="col-md-6">
             <div class="text-muted small">Customer</div>
@@ -145,9 +145,41 @@
 
     <!-- OTP Verification -->
     {% if assignment.status == 'assigned' %}
+
+    {# For deliver_clothes: first verify tailor handover OTP before showing pickup #}
+    {% if assignment.assignment_type == 'deliver_clothes' and assignment.order.tailor_handover_otp and not assignment.order.tailor_handover_verified %}
+    <div class="card border-0 shadow-sm border-start border-4 border-success mb-3">
+      <div class="card-header bg-success bg-opacity-10 py-3">
+        <span class="fw-semibold"><i class="bi bi-shop me-2 text-success"></i>Step 1 — Verify Tailor Handover OTP</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="alert alert-info small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Ask the <strong>tailor</strong> for their Handover OTP to confirm you have collected the finished garment.
+        </div>
+        <form method="POST" action="{{ url_for('delivery.verify_otp', assignment_id=assignment.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="tailor_handover">
+          <div class="row g-2 align-items-end">
+            <div class="col-7">
+              <label class="form-label fw-semibold small">Tailor Handover OTP</label>
+              <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold"
+                     maxlength="6" placeholder="- - - - - -" required style="font-size:1.5rem;letter-spacing:.5rem;">
+            </div>
+            <div class="col-5">
+              <button type="submit" class="btn btn-success fw-semibold w-100 py-2">
+                <i class="bi bi-check2-circle me-1"></i>Verify & Pickup
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
     <div class="card border-0 shadow-sm border-start border-4 border-warning">
       <div class="card-header bg-white py-3">
-        <span class="fw-semibold"><i class="bi bi-shield-lock me-2 text-warning"></i>Confirm Pickup with OTP</span>
+        <span class="fw-semibold"><i class="bi bi-shield-lock me-2 text-warning"></i>
+          {% if assignment.assignment_type == 'deliver_clothes' %}Step 2 — {% endif %}Confirm Pickup with OTP</span>
       </div>
       <div class="card-body p-4">
         <div class="alert alert-warning small mb-3">
@@ -160,9 +192,8 @@
           <div class="row g-2 align-items-end">
             <div class="col-7">
               <label class="form-label fw-semibold small">Pickup OTP (from customer)</label>
-              <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold letter-spacing-2"
-                     maxlength="6" placeholder="- - - - - -" required
-                     style="font-size:1.5rem;letter-spacing:.5rem;">
+              <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold"
+                     maxlength="6" placeholder="- - - - - -" required style="font-size:1.5rem;letter-spacing:.5rem;">
             </div>
             <div class="col-5">
               <button type="submit" class="btn btn-warning fw-semibold w-100 py-2">
@@ -173,6 +204,7 @@
         </form>
       </div>
     </div>
+    {% endif %}
 
     {% elif assignment.status == 'picked_up' %}
     <div class="card border-0 shadow-sm border-start border-4 border-success">
@@ -265,17 +297,26 @@
         <i class="bi bi-key-fill me-2"></i>OTP Reference
       </div>
       <div class="card-body">
-        <div class="text-muted small mb-3">These OTPs are shown to the customer. Ask them to read it out to you.</div>
+        <div class="text-muted small mb-3">Ask the relevant party to read the OTP to you.</div>
         <div class="row g-2">
+          {% if assignment.assignment_type == 'deliver_clothes' and assignment.order.tailor_handover_otp %}
+          <div class="col-12 mb-2">
+            <div class="text-muted small">Tailor Handover OTP <span class="text-muted">(from tailor)</span></div>
+            <div class="fw-bold fs-4 {% if assignment.order.tailor_handover_verified %}text-muted text-decoration-line-through{% else %}text-info{% endif %}">
+              {{ assignment.order.tailor_handover_otp }}
+            </div>
+            {% if assignment.order.tailor_handover_verified %}<div class="badge bg-success">Verified</div>{% endif %}
+          </div>
+          {% endif %}
           <div class="col-6">
-            <div class="text-muted small">Pickup OTP</div>
+            <div class="text-muted small">Pickup OTP <span class="text-muted">(from customer)</span></div>
             <div class="fw-bold fs-4 {% if assignment.pickup_otp_verified %}text-muted text-decoration-line-through{% else %}text-warning{% endif %}">
               {{ assignment.pickup_otp }}
             </div>
             {% if assignment.pickup_otp_verified %}<div class="badge bg-success">Verified</div>{% endif %}
           </div>
           <div class="col-6">
-            <div class="text-muted small">Delivery OTP</div>
+            <div class="text-muted small">Delivery OTP <span class="text-muted">(from customer)</span></div>
             <div class="fw-bold fs-4 {% if assignment.delivery_otp_verified %}text-muted text-decoration-line-through{% else %}text-success{% endif %}">
               {{ assignment.delivery_otp }}
             </div>

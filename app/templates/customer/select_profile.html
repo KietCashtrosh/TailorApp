@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Who are you ordering for?{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width:700px;">
+  <div class="text-center mb-4">
+    <h4 class="fw-bold mb-1"><i class="bi bi-people me-2 text-brand-purple"></i>Who are you ordering for?</h4>
+    <p class="text-muted small">Choose a family profile or order for yourself.</p>
+  </div>
+
+  <div class="row g-3 justify-content-center mb-4">
+    <!-- Myself card -->
+    <div class="col-6 col-sm-4">
+      <form method="POST" action="{{ url_for('customer.profile_clear') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn w-100 p-0 border-0 bg-transparent text-start">
+          <div class="card h-100 border-2 {% if not active_profile %}border-brand-purple{% else %}border-0{% endif %} shadow-sm rounded-4 text-center py-4 px-2" style="cursor:pointer;">
+            <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center text-white fw-bold mb-2" style="width:56px;height:56px;font-size:1.2rem;background:#6c757d;">
+              {{ current_user.name[:2].upper() }}
+            </div>
+            <div class="fw-semibold small">{{ current_user.name.split()[0] }}</div>
+            <div class="text-muted" style="font-size:.72rem;">Myself</div>
+            {% if not active_profile %}
+            <span class="badge bg-brand-purple rounded-pill mt-2 mx-auto" style="font-size:.6rem;">Active</span>
+            {% endif %}
+          </div>
+        </button>
+      </form>
+    </div>
+
+    {% for fp in profiles %}
+    <div class="col-6 col-sm-4">
+      <form method="POST" action="{{ url_for('customer.profile_activate', profile_id=fp.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ url_for('customer.home') }}">
+        <button type="submit" class="btn w-100 p-0 border-0 bg-transparent text-start">
+          <div class="card h-100 border-2 {% if active_profile and active_profile.id == fp.id %}border-brand-purple{% else %}border-0{% endif %} shadow-sm rounded-4 text-center py-4 px-2" style="cursor:pointer;">
+            <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center text-white fw-bold mb-2" style="width:56px;height:56px;font-size:1.2rem;background:{{ fp.avatar_color }};">
+              {{ fp.initials() }}
+            </div>
+            <div class="fw-semibold small">{{ fp.name }}</div>
+            <div class="text-muted" style="font-size:.72rem;">{{ fp.relation or 'Family' }}</div>
+            {% if active_profile and active_profile.id == fp.id %}
+            <span class="badge bg-brand-purple rounded-pill mt-2 mx-auto" style="font-size:.6rem;">Active</span>
+            {% endif %}
+          </div>
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+
+    <!-- Add new -->
+    <div class="col-6 col-sm-4">
+      <a href="{{ url_for('customer.profile_new') }}" class="text-decoration-none">
+        <div class="card h-100 border-2 border-dashed border-0 shadow-sm rounded-4 text-center py-4 px-2" style="cursor:pointer;border:2px dashed #dee2e6!important;">
+          <div class="mx-auto rounded-circle bg-light d-flex align-items-center justify-content-center mb-2" style="width:56px;height:56px;">
+            <i class="bi bi-plus-lg text-muted fs-4"></i>
+          </div>
+          <div class="text-muted small">Add profile</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="text-center">
+    <a href="{{ url_for('customer.home') }}" class="btn btn-brand-purple rounded-pill px-5 fw-semibold">
+      Continue <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+  </div>
+</div>
+{% endblock %}
