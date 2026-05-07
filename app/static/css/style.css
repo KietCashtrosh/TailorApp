@@ -7,18 +7,18 @@
 
 /* ── CSS Variables ──────────────────────────────── */
 :root {
-  --brand-purple:       #6d28d9;
-  --brand-purple-dark:  #4c1d95;
-  --brand-purple-light: #f5f3ff;
-  --brand-orange:       #ea580c;
-  --brand-orange-light: #fff7ed;
-  --bg-color:           #f8f7ff;
-  --text-dark:          #1c1917;
-  --text-muted:         #78716c;
-  --card-radius:        14px;
+  --brand-purple:       #312e81;
+  --brand-purple-dark:  #1e1b4b;
+  --brand-purple-light: #e0e7ff;
+  --brand-orange:       #e11d48;
+  --brand-orange-light: #ffe4e6;
+  --bg-color:           #fafafa;
+  --text-dark:          #111827;
+  --text-muted:         #6b7280;
+  --card-radius:        16px;
   --sidebar-w:          260px;
-  --glass-bg:           rgba(255, 255, 255, 0.75);
-  --glass-border:       rgba(255, 255, 255, 0.45);
+  --glass-bg:           rgba(255, 255, 255, 0.85);
+  --glass-border:       rgba(255, 255, 255, 0.5);
 }
 
 /* ── Base ───────────────────────────────────────── */
@@ -43,35 +43,39 @@ body {
   background-color: var(--brand-purple);
   color: #fff;
   border: none;
-  font-weight: 500;
-  transition: background-color .2s, transform .2s, box-shadow .2s;
-  box-shadow: 0 3px 10px rgba(109, 40, 217, 0.22);
+  font-weight: 600;
+  border-radius: 50rem;
+  padding: 0.5rem 1.25rem;
+  transition: all .25s ease;
+  box-shadow: 0 4px 14px rgba(49, 46, 129, 0.15);
 }
 .btn-brand-purple:hover,
 .btn-brand:hover {
   background-color: var(--brand-purple-dark);
   color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(49, 46, 129, 0.25);
 }
 .btn-brand-purple:active,
-.btn-brand:active { transform: translateY(0); }
+.btn-brand:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(49, 46, 129, 0.15); }
 
 .btn-brand-orange {
   background-color: var(--brand-orange);
   color: #fff;
   border: none;
-  font-weight: 500;
-  transition: background-color .2s, transform .2s, box-shadow .2s;
-  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.22);
+  font-weight: 600;
+  border-radius: 50rem;
+  padding: 0.5rem 1.25rem;
+  transition: all .25s ease;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.2);
 }
 .btn-brand-orange:hover {
-  background-color: #c2410c;
+  background-color: #be123c;
   color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.3);
 }
-.btn-brand-orange:active { transform: translateY(0); }
+.btn-brand-orange:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(225, 29, 72, 0.2); }
 
 /* Touch-friendly tap targets */
 @media (max-width: 767.98px) {
@@ -81,27 +85,33 @@ body {
 
 /* ── Navbar (public) ────────────────────────────── */
 .navbar-custom {
-  background: rgba(76, 29, 149, 0.96) !important;
+  background: #ffffff !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
 }
 .navbar-brand {
   font-weight: 800;
   font-size: 1.4rem;
   letter-spacing: -0.5px;
+  color: var(--brand-purple) !important;
 }
 .navbar-brand span { color: var(--brand-orange); }
+.navbar-custom .nav-link { color: var(--text-dark) !important; font-weight: 500; }
+.navbar-custom .nav-link:hover { color: var(--brand-orange) !important; }
+.navbar-custom .navbar-toggler-icon { filter: invert(1); }
 
 /* Collapse menu background on mobile */
 @media (max-width: 991.98px) {
   .navbar-collapse {
-    background: rgba(76, 29, 149, 0.98);
+    background: #ffffff;
     border-radius: 0 0 12px 12px;
     padding: 0.5rem 1rem 1rem;
     margin-top: 0.25rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
-  .navbar-nav .nav-link { padding: 0.6rem 0.5rem !important; }
+  .navbar-nav .nav-link { padding: 0.8rem 0.5rem !important; border-bottom: 1px solid rgba(0,0,0,0.03); }
 }
 
 /* ═══════════════════════════════════════════════
@@ -243,12 +253,12 @@ body {
   border-radius: var(--card-radius);
   padding: 1.25rem 1.5rem;
   background: #fff;
-  transition: transform .25s, box-shadow .25s;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 .stat-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.07);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.06);
 }
 
 /* ── Glass card ─────────────────────────────────── */
@@ -537,4 +547,60 @@ body {
   20%      { transform: rotate(-15deg); }
   60%      { transform: rotate(15deg); }
   80%      { transform: rotate(-8deg); }
+}
+
+/* ═══════════════════════════════════════════════
+   BOTTOM NAVIGATION BAR (Mobile Zomato/Myntra style)
+   ═══════════════════════════════════════════════ */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255,255,255,0.98);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.04);
+  z-index: 1030;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (max-width: 767.98px) {
+  .bottom-nav { display: flex; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); } /* Prevent content overlap */
+}
+.bottom-nav-item {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 0;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  transition: color 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.bottom-nav-item i { font-size: 1.3rem; margin-bottom: 2px; transition: transform 0.2s; }
+.bottom-nav-item:hover, .bottom-nav-item.active {
+  color: var(--brand-orange);
+}
+.bottom-nav-item:active i { transform: scale(0.9); }
+.bottom-nav-badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 14px);
+  background: var(--brand-orange);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.55rem;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
 }

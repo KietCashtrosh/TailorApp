@@ -153,6 +153,33 @@
   {% block content %}{% endblock %}
 </div>
 
+{% if current_user.is_authenticated and current_user.role == 'customer' %}
+<!-- Mobile Bottom Nav (Customer) -->
+<nav class="bottom-nav d-md-none">
+  <a href="{{ url_for('customer.home') }}" class="bottom-nav-item {% if request.endpoint == 'customer.home' %}active{% endif %}">
+    <i class="bi bi-house-door{% if request.endpoint == 'customer.home' %}-fill{% endif %}"></i>
+    <span>Home</span>
+  </a>
+  <a href="{{ url_for('customer.tailors') }}" class="bottom-nav-item {% if request.endpoint == 'customer.tailors' %}active{% endif %}">
+    <i class="bi bi-scissors"></i>
+    <span>Tailors</span>
+  </a>
+  <a href="{{ url_for('customer.my_orders') }}" class="bottom-nav-item {% if request.endpoint == 'customer.my_orders' %}active{% endif %}">
+    <i class="bi bi-receipt"></i>
+    <span>Orders</span>
+  </a>
+  <a href="{{ url_for('customer.cart') }}" class="bottom-nav-item position-relative {% if request.endpoint == 'customer.cart' %}active{% endif %}">
+    <i class="bi bi-bag"></i>
+    <span class="bottom-nav-badge nav-cart-count" style="{% if not cart_count or cart_count == 0 %}display:none;{% endif %}">{{ cart_count or '' }}</span>
+    <span>Cart</span>
+  </a>
+  <a href="{{ url_for('customer.profile') }}" class="bottom-nav-item {% if request.endpoint == 'customer.profile' %}active{% endif %}">
+    <i class="bi bi-person{% if request.endpoint == 'customer.profile' %}-fill{% endif %}"></i>
+    <span>Profile</span>
+  </a>
+</nav>
+{% endif %}
+
 {% endblock %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

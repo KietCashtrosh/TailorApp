@@ -2,8 +2,33 @@
 {% block title %}Custom Stitching, Delivered{% endblock %}
 {% block extra_head %}
 <style>
-.hero { background: linear-gradient(135deg, var(--brand-purple-dark) 0%, var(--brand-purple) 60%, #9333ea 100%); position: relative; overflow: hidden; }
-.hero::after { content: ''; position: absolute; top: -40%; right: -10%; width: 420px; height: 420px; background: radial-gradient(circle, rgba(234,88,12,.28) 0%, transparent 70%); border-radius: 50%; pointer-events: none; }
+.hero {
+  background: var(--brand-purple-dark);
+  background-image: radial-gradient(circle at 100% 0%, var(--brand-purple) 0%, transparent 60%);
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 24px 24px;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -10%; right: -5%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(225,29,72,0.15) 0%, transparent 60%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero-image-placeholder {
+  font-size: 8rem;
+  line-height: 1;
+  text-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
 .step-icon { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; }
 .how-step { transition: transform .25s; }
 .how-step:hover { transform: translateY(-4px); }
@@ -14,34 +39,36 @@
 {% set is_returning = current_user.is_authenticated and current_user.role == 'customer' and current_user.customer_orders.count() > 0 %}
 
 <!-- Hero -->
-<div class="hero text-white py-5 px-3">
-  <div class="container py-2 py-md-4">
+<div class="hero text-white py-5 px-3 mb-4 shadow-sm">
+  <div class="container py-3 py-md-5">
     <div class="row align-items-center g-4">
-      <div class="col-lg-6">
-        <span class="badge bg-white text-brand-purple fw-semibold px-3 py-2 rounded-pill mb-3">
-          <i class="bi bi-scissors me-1"></i>Custom Tailoring Platform
+      <div class="col-lg-7">
+        <span class="badge bg-white text-brand-purple fw-bold px-3 py-2 rounded-pill mb-4 shadow-sm" style="letter-spacing: 0.5px;">
+          <i class="bi bi-star-fill text-warning me-1"></i> PREMIUM TAILORING
         </span>
-        <h1 class="display-5 fw-bold mb-3 lh-sm">Custom Stitching,<br>Delivered to Your Door</h1>
-        <p class="mb-4 text-white-75" style="font-size:1.05rem;opacity:.85;">
-          Find skilled tailors near you. Share your fabric, pick your design, track your order — all in one place.
+        <h1 class="display-4 fw-bolder mb-3 lh-sm" style="letter-spacing: -1px;">
+          Perfect fit,<br>delivered to you.
+        </h1>
+        <p class="mb-5 text-white-50" style="font-size:1.15rem; max-width: 500px;">
+          Find top-rated tailors, customize your style, and track your stitching journey from fabric to finish.
         </p>
         <div class="d-flex gap-3 flex-wrap">
-          <a href="{{ url_for('customer.tailors') }}" class="btn btn-light fw-semibold px-4 py-2 rounded-pill shadow-sm">
-            <i class="bi bi-search me-2"></i>Find Tailors
+          <a href="{{ url_for('customer.tailors') }}" class="btn btn-light text-dark fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
+            Explore Tailors
           </a>
           {% if not current_user.is_authenticated %}
-          <a href="{{ url_for('auth.register') }}" class="btn btn-brand-orange fw-semibold px-4 py-2 rounded-pill shadow-sm">
-            Get Started Free
+          <a href="{{ url_for('auth.register') }}" class="btn btn-brand-orange fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
+            Get Started
           </a>
           {% else %}
-          <a href="{{ url_for('customer.place_order') }}" class="btn btn-brand-orange fw-semibold px-4 py-2 rounded-pill shadow-sm">
-            <i class="bi bi-plus-circle me-2"></i>Place Order
+          <a href="{{ url_for('customer.place_order') }}" class="btn btn-brand-orange fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
+            <i class="bi bi-plus-lg me-2"></i>Place Order
           </a>
           {% endif %}
         </div>
       </div>
-      <div class="col-lg-6 text-center d-none d-lg-block">
-        <div style="font-size:9rem;opacity:.2;line-height:1;">✂️</div>
+      <div class="col-lg-5 text-center d-none d-lg-block position-relative">
+        <div class="hero-image-placeholder">✨👗✨</div>
       </div>
     </div>
   </div>
