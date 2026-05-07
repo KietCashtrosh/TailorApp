@@ -47,9 +47,24 @@
             </div>
             <div class="text-end flex-shrink-0">
               <div class="fw-bold text-brand-orange fs-5">₹{{ item.effective_price|int }}</div>
-              <form method="POST" action="{{ url_for('customer.cart_remove', item_id=item.id) }}" class="mt-2">
+
+              <div class="d-flex align-items-center justify-content-end gap-2 mt-2 mb-2">
+                <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="decrease">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:28px;height:28px;padding:0;" {% if item.quantity <= 1 %}disabled{% endif %}>-</button>
+                </form>
+                <span class="fw-bold" style="min-width:1rem;text-align:center;">{{ item.quantity }}</span>
+                <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="increase">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:28px;height:28px;padding:0;">+</button>
+                </form>
+              </div>
+
+              <form method="POST" action="{{ url_for('customer.cart_remove', item_id=item.id) }}" class="mt-1">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                <button class="btn btn-sm text-danger p-0" style="font-size:0.85rem;background:none;border:none;">
                   <i class="bi bi-trash me-1"></i>Remove
                 </button>
               </form>

@@ -11,6 +11,8 @@
 {% endblock %}
 {% block content %}
 
+{% set is_returning = current_user.is_authenticated and current_user.role == 'customer' and current_user.customer_orders.count() > 0 %}
+
 <!-- Hero -->
 <div class="hero text-white py-5 px-3">
   <div class="container py-2 py-md-4">
@@ -46,6 +48,7 @@
 </div>
 
 <!-- How it works -->
+{% if not is_returning %}
 <div class="bg-white py-5">
   <div class="container">
     <div class="text-center mb-5">
@@ -70,6 +73,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <!-- Design Categories -->
 <div class="py-5" style="background:var(--brand-purple-light);">

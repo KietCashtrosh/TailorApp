@@ -25,7 +25,7 @@
         </div>
         <div class="col-auto">
           {% if current_user.is_authenticated and current_user.role == 'customer' %}
-          <a href="{{ url_for('customer.place_order', tailor_id=tailor.id) }}" class="btn btn-brand-orange px-4 rounded-pill shadow-sm">
+          <a href="{{ url_for('customer.place_order', tailor_id=tailor.id, design_id=selected_design_id if selected_design_id else None) }}" class="btn btn-brand-orange px-4 rounded-pill shadow-sm">
             <i class="bi bi-scissors me-2"></i>Place Order
           </a>
           {% else %}
@@ -54,7 +54,7 @@
         <div class="card-body p-0">
           {% for design in designs %}
           {% if design.name in specs %}
-          <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+          <div class="d-flex align-items-center justify-content-between p-3 border-bottom {% if selected_design_id == design.id %}bg-brand-purple bg-opacity-10{% endif %}" id="design-{{ design.id }}">
             <div class="d-flex align-items-center gap-3">
               <span style="font-size:1.8rem;">
                 {% if design.name == 'Blouse' %}🪡{% elif design.name == 'Lehenga' %}👗{% elif design.name == 'Shirt' %}👔{% elif design.name == 'Trouser' %}👖{% else %}✂️{% endif %}
@@ -197,5 +197,14 @@
     document.getElementById('cartTailorId').value = btn.dataset.tailorId;
     document.getElementById('cartDesignName').textContent = btn.dataset.designName;
   });
+
+  {% if selected_design_id %}
+  setTimeout(function() {
+    var el = document.getElementById('design-{{ selected_design_id }}');
+    if(el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+  {% endif %}
 </script>
 {% endblock %}

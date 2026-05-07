@@ -147,10 +147,10 @@
           </div>
 
           <div class="d-flex gap-2">
-            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}"
+            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id, design_id=selected_design.id if selected_design else None) }}"
                class="btn btn-brand-purple btn-sm flex-fill rounded-pill">View Profile</a>
             {% if current_user.is_authenticated and current_user.role == 'customer' %}
-            <a href="{{ url_for('customer.place_order', tailor_id=t.id) }}"
+            <a href="{{ url_for('customer.place_order', tailor_id=t.id, design_id=selected_design.id if selected_design else None) }}"
                class="btn btn-brand-orange btn-sm flex-fill rounded-pill">Order</a>
             {% endif %}
           </div>

@@ -144,11 +144,18 @@ def tailors():
     user_lat = request.args.get('lat', type=float)
     user_lng = request.args.get('lng', type=float)
     min_rating = request.args.get('min_rating', type=float)
-    sort_by = request.args.get('sort', '')  # rating | price_asc | price_desc
+    sort_by = request.args.get('sort', '')  # distance | rating | price_asc | price_desc
+
+    from flask import current_app
+    default_sort = current_app.config.get('DEFAULT_TAILOR_SORT', 'distance')
+    if not sort_by:
+        sort_by = default_sort
 
     q = TailorProfile.query.filter_by(is_active=True, is_available=True)
+    selected_design = None
     if design_filter:
         q = q.filter(TailorProfile.specializations.contains(design_filter))
+        selected_design = Design.query.filter_by(name=design_filter, is_active=True).first()
     if search:
         q = q.filter(TailorProfile.shop_name.ilike(f'%{search}%') |
                      TailorProfile.address.ilike(f'%{search}%'))
@@ -163,10 +170,13 @@ def tailors():
                 t.distance = round(haversine(user_lat, user_lng, t.latitude, t.longitude), 1)
             else:
                 t.distance = None
-        if not sort_by:
-            tailors_list.sort(key=lambda t: (t.distance is None, t.distance or 9999))
+    else:
+        for t in tailors_list:
+            t.distance = None
 
-    if sort_by == 'rating':
+    if sort_by == 'distance' and user_lat and user_lng:
+        tailors_list.sort(key=lambda t: (t.distance is None, t.distance or 9999))
+    elif sort_by == 'rating' or (sort_by == 'distance' and not user_lat):
         tailors_list.sort(key=lambda t: t.rating, reverse=True)
     elif sort_by == 'price_asc':
         tailors_list.sort(key=lambda t: min(
@@ -179,6 +189,7 @@ def tailors():
     designs = Design.query.filter_by(is_active=True).all()
     return render_template('customer/tailors.html', tailors=tailors_list,
                            designs=designs, design_filter=design_filter,
+                           selected_design=selected_design,
                            search=search, user_lat=user_lat, user_lng=user_lng,
                            min_rating=min_rating, sort_by=sort_by)
 
@@ -186,6 +197,7 @@ def tailors():
 @customer_bp.route('/tailors/<int:tailor_id>')
 def tailor_detail(tailor_id):
     tailor = TailorProfile.query.filter_by(id=tailor_id, is_active=True).first_or_404()
+    design_id = request.args.get('design_id', type=int)
     designs = Design.query.filter_by(is_active=True).all()
     specs = tailor.get_specializations()
     # Build per-design price (tailor custom or global base)
@@ -194,7 +206,8 @@ def tailor_detail(tailor_id):
         tmpl = tailor.get_measurement_template(d.id)
         design_prices[d.id] = tmpl.effective_price() if tmpl else d.base_price
     return render_template('customer/tailor_detail.html', tailor=tailor,
-                           designs=designs, specs=specs, design_prices=design_prices)
+                           designs=designs, specs=specs, design_prices=design_prices,
+                           selected_design_id=design_id)
 
 
 @customer_bp.route('/order/new', methods=['GET', 'POST'])
@@ -487,7 +500,7 @@ def cart():
     for item in items:
         tmpl = item.tailor.get_measurement_template(item.design_id)
         item.effective_price = tmpl.effective_price() if tmpl else item.design.base_price
-    total = sum(i.effective_price for i in items)
+    total = sum(i.effective_price * i.quantity for i in items)
     return render_template('customer/cart.html', items=items, total=total,
                            default_pickup=current_user.default_pickup_address or '',
                            default_delivery=current_user.default_delivery_address or '')
@@ -522,12 +535,14 @@ def cart_add():
         flash('Invalid tailor or design.', 'danger')
         return redirect(request.referrer or url_for('customer.tailors'))
 
-    # Prevent duplicate same design+tailor in cart
+    # Check if same design+tailor already in cart
     existing = CartItem.query.filter_by(
         customer_id=current_user.id, tailor_id=tailor_id, design_id=design_id
     ).first()
     if existing:
-        flash(f'{design.name} from {tailor.shop_name} is already in your cart.', 'info')
+        existing.quantity += 1
+        db.session.commit()
+        flash(f'Increased quantity of {design.name} from {tailor.shop_name} in your cart.', 'success')
         return redirect(url_for('customer.cart'))
 
     measurements = {}
@@ -566,6 +581,20 @@ def cart_remove(item_id):
     return redirect(url_for('customer.cart'))
 
 
+@customer_bp.route('/cart/update/<int:item_id>', methods=['POST'])
+@login_required
+@customer_required
+def cart_update(item_id):
+    item = CartItem.query.filter_by(id=item_id, customer_id=current_user.id).first_or_404()
+    action = request.form.get('action')
+    if action == 'increase':
+        item.quantity += 1
+    elif action == 'decrease' and item.quantity > 1:
+        item.quantity -= 1
+    db.session.commit()
+    return redirect(url_for('customer.cart'))
+
+
 @customer_bp.route('/cart/checkout', methods=['POST'])
 @login_required
 @customer_required
@@ -593,14 +622,24 @@ def cart_checkout():
     coupon = Coupon.query.filter_by(code=coupon_code).first() if coupon_code else None
     placed_orders = []
 
+    # Group items by tailor
+    tailor_items = {}
     for item in items:
-        tmpl = item.tailor.get_measurement_template(item.design_id)
-        base_price = tmpl.effective_price() if tmpl else item.design.base_price
+        tailor_items.setdefault(item.tailor_id, []).append(item)
+
+    from app.models import OrderItem
+
+    for t_id, t_items in tailor_items.items():
+        subtotal = 0
+        for item in t_items:
+            tmpl = item.tailor.get_measurement_template(item.design_id)
+            price = tmpl.effective_price() if tmpl else item.design.base_price
+            subtotal += price * item.quantity
 
         discount_amount = 0
         applied_code = ''
         if coupon:
-            discount, msg = coupon.compute_discount(base_price)
+            discount, msg = coupon.compute_discount(subtotal)
             if discount > 0:
                 discount_amount = discount
                 applied_code = coupon_code
@@ -608,15 +647,15 @@ def cart_checkout():
         order = Order(
             order_number=generate_order_number(),
             customer_id=current_user.id,
-            tailor_id=item.tailor_id,
-            design_id=item.design_id,
-            measurements=item.measurements,
-            measurement_preference=item.measurement_preference,
-            fabric_description=item.fabric_description,
-            special_instructions=item.special_instructions,
+            tailor_id=t_id,
+            design_id=None, # None indicates multi-item order via OrderItem
+            measurements='{}',
+            measurement_preference='mixed',
+            fabric_description='Multiple items',
+            special_instructions='Multiple items',
             pickup_address=pickup_address,
             delivery_address=delivery_address,
-            estimated_price=base_price,
+            estimated_price=subtotal,
             discount_amount=discount_amount,
             coupon_code=applied_code,
             payment_method=payment_method,
@@ -624,9 +663,24 @@ def cart_checkout():
         )
         db.session.add(order)
         db.session.flush()
+
+        for item in t_items:
+            tmpl = item.tailor.get_measurement_template(item.design_id)
+            price = tmpl.effective_price() if tmpl else item.design.base_price
+            order_item = OrderItem(
+                order_id=order.id,
+                design_id=item.design_id,
+                quantity=item.quantity,
+                fabric_description=item.fabric_description,
+                measurements=item.measurements,
+                special_instructions=item.special_instructions,
+                unit_price=price
+            )
+            db.session.add(order_item)
+
         order.add_status('placed', note='Order placed via cart.', changed_by_id=current_user.id)
-        notify(item.tailor.user_id,
-               f'New order {order.order_number} for {item.design.name} from {current_user.name}.',
+        notify(t_id,
+               f'New multi-item order {order.order_number} from {current_user.name}.',
                url_for('tailor.order_detail', order_id=order.id))
         placed_orders.append(order)
 

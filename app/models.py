@@ -532,6 +532,7 @@ class CartItem(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
     design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
     fabric_description = db.Column(db.Text, default='')
     special_instructions = db.Column(db.Text, default='')
     measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
