@@ -1,0 +1,105 @@
+{% extends "tailor/base.html" %}
+{% block title %}My Earnings{% endblock %}
+{% block tailor_content %}
+
+<h4 class="fw-bold mb-4"><i class="bi bi-currency-rupee me-2 text-success"></i>Earnings Summary</h4>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card bg-white shadow-sm border-start border-4 border-success">
+      <div class="text-muted small">Total Earned</div>
+      <div class="fs-2 fw-bold text-success">₹{{ '{:,.0f}'.format(total_earned) }}</div>
+      <div class="text-muted small">from {{ delivered_orders|length }} orders</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card bg-white shadow-sm border-start border-4 border-info">
+      <div class="text-muted small">This Month</div>
+      <div class="fs-2 fw-bold text-info">₹{{ '{:,.0f}'.format(this_month_earned) }}</div>
+      <div class="text-muted small">{{ this_month_count }} orders completed</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card bg-white shadow-sm border-start border-4 border-warning">
+      <div class="text-muted small">In Pipeline</div>
+      <div class="fs-2 fw-bold text-warning">₹{{ '{:,.0f}'.format(pending_amount) }}</div>
+      <div class="text-muted small">{{ active_count }} order{{ 's' if active_count != 1 }} in progress</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card bg-white shadow-sm border-start border-4" style="border-color:var(--brand-purple)!important;">
+      <div class="text-muted small">Rating</div>
+      <div class="fs-2 fw-bold" style="color:var(--brand-purple);">
+        <i class="bi bi-star-fill text-warning fs-5 me-1"></i>{{ '%.1f'|format(profile.rating) }}
+      </div>
+      <div class="text-muted small">{{ profile.rating_count }} review{{ 's' if profile.rating_count != 1 }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Info banner about platform split -->
+<div class="alert alert-info border-0 rounded-3 d-flex gap-3 align-items-start mb-4">
+  <i class="bi bi-info-circle-fill fs-5 flex-shrink-0 mt-1"></i>
+  <div class="small">
+    <strong>Platform fee note:</strong> The amounts shown are the full order prices paid by customers.
+    Your actual payout will be the order amount minus the platform fee (typically 10%).
+    Payment settlements are managed by the TailorApp admin.
+  </div>
+</div>
+
+<!-- Delivered Orders Table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold py-3">
+    <i class="bi bi-receipt me-2"></i>Completed Orders
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Order #</th>
+          <th>Customer</th>
+          <th>Design</th>
+          <th>Completed On</th>
+          <th class="text-end">Amount</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in delivered_orders %}
+        <tr>
+          <td><code class="small">{{ o.order_number }}</code></td>
+          <td>{{ o.customer.name }}</td>
+          <td>{{ o.display_design_name() }}</td>
+          <td class="text-muted small">
+            {% if o.updated_at %}{{ o.updated_at.strftime('%d %b %Y') }}{% else %}—{% endif %}
+          </td>
+          <td class="text-end fw-semibold text-success">₹{{ '{:,.0f}'.format(o.final_price or o.estimated_price or 0) }}</td>
+          <td>
+            <a href="{{ url_for('tailor.order_detail', order_id=o.id) }}"
+               class="btn btn-sm btn-outline-secondary">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-bag-x fs-2 opacity-25 d-block mb-2"></i>
+            No completed orders yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if delivered_orders %}
+      <tfoot class="table-light">
+        <tr>
+          <td colspan="4" class="fw-semibold text-end pe-3">Total</td>
+          <td class="fw-bold text-success text-end">₹{{ '{:,.0f}'.format(total_earned) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{% endblock %}

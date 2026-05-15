@@ -1,6 +1,7 @@
+import os
 from flask import Flask
 from config import Config
-from app.extensions import db, login_manager, csrf
+from app.extensions import db, login_manager, csrf, mail
 
 
 def create_app(config_class=Config):
@@ -10,6 +11,11 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+    mail.init_app(app)
+
+    # Ensure upload sub-directories exist
+    for sub in ('catalogue', 'shop_photos', 'work_images'):
+        os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], sub), exist_ok=True)
 
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
@@ -28,10 +34,19 @@ def create_app(config_class=Config):
     app.register_blueprint(customer_bp, url_prefix='/')
 
     from app.models import User, Notification, CartItem, FamilyProfile
+    from flask_login import user_loaded_from_cookie, user_loaded_from_request
 
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+    @user_loaded_from_cookie.connect_via(app)
+    def on_loaded_from_cookie(sender, user):
+        """Remember-me cookie just loaded this customer into a fresh session.
+        Clear the profile selection so home() will redirect to the selector."""
+        from flask import session
+        if hasattr(user, 'role') and user.role == 'customer':
+            session.pop('active_profile_id', None)
 
     @app.context_processor
     def inject_globals():

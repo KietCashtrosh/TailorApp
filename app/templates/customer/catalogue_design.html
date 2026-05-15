@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('customer.catalogue') }}">Catalogue</a></li>
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('customer.catalogue_category', category_id=pd.category.id) }}">{{ pd.category.name }}</a>
+      </li>
+      <li class="breadcrumb-item active">{{ pd.name }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-4">
+    <!-- Left: Images + Info -->
+    <div class="col-lg-5">
+      {% if images %}
+      <div id="designCarousel" class="carousel slide rounded-4 overflow-hidden shadow-sm mb-3" data-bs-ride="false">
+        <div class="carousel-inner">
+          {% for img in images %}
+          <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <img src="{{ img.url() }}" class="d-block w-100" style="height:340px;object-fit:cover;" alt="{{ pd.name }}">
+          </div>
+          {% endfor %}
+        </div>
+        {% if images|length > 1 %}
+        <button class="carousel-control-prev" type="button" data-bs-target="#designCarousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#designCarousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon"></span>
+        </button>
+        {% endif %}
+      </div>
+      <!-- Thumbnails -->
+      {% if images|length > 1 %}
+      <div class="d-flex gap-2 flex-wrap mb-3">
+        {% for img in images %}
+        <img src="{{ img.url() }}" class="rounded-2 border"
+             style="width:60px;height:60px;object-fit:cover;cursor:pointer;"
+             onclick="document.querySelector('#designCarousel .carousel-inner .carousel-item:nth-child({{ loop.index }})').scrollIntoView()"
+             alt="">
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="bg-light rounded-4 d-flex align-items-center justify-content-center mb-3" style="height:280px;">
+        <i class="bi bi-image fs-1 text-muted opacity-25"></i>
+      </div>
+      {% endif %}
+
+      <!-- Fabric Suggestions -->
+      {% set fabrics = pd.get_fabric_suggestions() %}
+      {% if fabrics %}
+      <div class="card border-0 bg-light rounded-3 p-3 mb-3">
+        <div class="small fw-semibold text-muted mb-2">Recommended Fabrics</div>
+        <div>
+          {% for f in fabrics %}
+          <span class="badge bg-white border text-dark me-1 mb-1 px-2 py-1">{{ f }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Right: Details + Variants + Tailors -->
+    <div class="col-lg-7">
+      <h3 class="fw-bold mb-1">{{ pd.name }}</h3>
+      <div class="text-muted small mb-2">{{ pd.category.name }}</div>
+      <div class="fs-4 fw-bold text-brand-purple mb-1">₹{{ pd.effective_base_price()|int }}</div>
+      <p class="text-muted small mb-3">Base price · Final price may vary by tailor and selected options.</p>
+
+      {% if pd.description %}
+      <p class="text-dark mb-4">{{ pd.description }}</p>
+      {% endif %}
+
+      <!-- Variants / Customization Options -->
+      {% if variants %}
+      <div class="mb-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-sliders me-2 text-brand-purple"></i>Customization Options</h6>
+        {% for v in variants %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">
+            {{ v.variant_group }}
+            {% if v.price_modifier > 0 %}
+            <span class="badge bg-warning text-dark ms-1">+₹{{ v.price_modifier|int }}</span>
+            {% endif %}
+          </label>
+          <div class="d-flex flex-wrap gap-2">
+            {% for opt in v.get_options() %}
+            <button type="button" class="btn btn-sm btn-outline-secondary variant-btn"
+                    data-group="{{ v.variant_group }}" data-option="{{ opt }}"
+                    onclick="selectVariant(this)">
+              {{ opt }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        <div class="text-muted small fst-italic">Select options when placing the order with your chosen tailor.</div>
+      </div>
+      {% endif %}
+
+      <!-- Tailors who offer this design -->
+      <div class="mb-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-scissors me-2 text-brand-purple"></i>Available Tailors</h6>
+        {% if services %}
+        <div class="d-flex flex-column gap-2">
+          {% for svc in services %}
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-3 px-3">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                  <div class="fw-semibold">{{ svc.tailor.shop_name }}</div>
+                  <div class="text-muted small">{{ svc.tailor.address }}</div>
+                  <div class="d-flex gap-2 mt-1 flex-wrap">
+                    <span class="badge bg-{{ svc.expertise_badge() }}">{{ svc.expertise_level|title }}</span>
+                    {% if svc.tailor.rating > 0 %}
+                    <span class="badge bg-warning text-dark">
+                      <i class="bi bi-star-fill me-1"></i>{{ '%.1f'|format(svc.tailor.rating) }}
+                    </span>
+                    {% endif %}
+                    <span class="badge bg-light text-dark border">~{{ svc.estimated_days }} days</span>
+                  </div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold fs-5 text-brand-purple">₹{{ svc.effective_price()|int }}</div>
+                  <a href="{{ url_for('customer.tailor_detail', tailor_id=svc.tailor.user_id) }}"
+                     class="btn btn-brand-purple btn-sm mt-1">
+                    Order Now
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4 bg-light rounded-3 text-muted">
+          <i class="bi bi-hourglass fs-2 opacity-25 d-block mb-2"></i>
+          No tailors currently available for this design.
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Book Style Agent CTA -->
+      <div class="card border-0 bg-brand-purple-light rounded-3 p-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <i class="bi bi-person-badge fs-2 text-brand-purple"></i>
+          <div class="flex-grow-1">
+            <div class="fw-semibold text-brand-purple">Need measurements at home?</div>
+            <div class="text-muted small">Book a Style Agent to visit and take your measurements.</div>
+          </div>
+          <a href="{{ url_for('customer.book_appointment', design_id=pd.id) }}"
+             class="btn btn-brand-purple btn-sm flex-shrink-0">
+            Book Agent
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function selectVariant(btn) {
+  const group = btn.dataset.group;
+  document.querySelectorAll(`.variant-btn[data-group="${group}"]`).forEach(b => {
+    b.classList.remove('btn-brand-purple');
+    b.classList.add('btn-outline-secondary');
+  });
+  btn.classList.remove('btn-outline-secondary');
+  btn.classList.add('btn-brand-purple');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="mb-3">
+  <a href="{{ url_for('admin.catalogue') }}" class="text-decoration-none text-muted small">
+    <i class="bi bi-arrow-left me-1"></i>Back to Catalogue
+  </a>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <div class="text-muted small">{{ pd.category.name }} →</div>
+    <h4 class="fw-bold mb-0">{{ pd.name }}</h4>
+    <div class="d-flex gap-2 mt-1 flex-wrap">
+      <span class="badge bg-brand-purple-light text-brand-purple">₹{{ pd.effective_base_price()|int }}</span>
+      {% if pd.is_active %}<span class="badge bg-success">Active</span>
+      {% else %}<span class="badge bg-danger">Inactive</span>{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.catalogue_edit', design_id=pd.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    <form method="POST" action="{{ url_for('admin.catalogue_toggle', design_id=pd.id) }}" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm {% if pd.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+        {{ 'Deactivate' if pd.is_active else 'Activate' }}
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Left: info + images -->
+  <div class="col-lg-4">
+    {% set img = pd.main_image() %}
+    {% if img %}
+    <img src="{{ img.url() }}" class="img-fluid rounded-3 shadow-sm mb-3 w-100" style="max-height:280px;object-fit:cover;" alt="{{ pd.name }}">
+    {% endif %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h6 class="fw-bold mb-2">Details</h6>
+        <p class="small text-muted mb-2">{{ pd.description or '—' }}</p>
+        <div class="small">
+          <strong>Fabric Suggestions:</strong><br>
+          {% for f in pd.get_fabric_suggestions() %}
+            <span class="badge bg-light text-dark border me-1 mb-1">{{ f }}</span>
+          {% else %}<span class="text-muted">None set</span>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: variants + tailor services -->
+  <div class="col-lg-8">
+
+    <!-- Variants Section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold py-3">
+        <i class="bi bi-sliders me-2 text-brand-purple"></i>Customization Variants (Level 3)
+      </div>
+      <div class="card-body">
+        {% if pd.variants.count() %}
+        <div class="row g-2 mb-3">
+          {% for v in pd.variants.order_by('display_order').all() %}
+          <div class="col-md-6">
+            <div class="border rounded-3 p-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold small">{{ v.variant_group }}</div>
+                  {% if v.price_modifier %}
+                    <span class="badge bg-warning text-dark small">+₹{{ v.price_modifier|int }}</span>
+                  {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('admin.variant_delete', variant_id=v.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger border-0" onclick="return confirm('Remove this variant?')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+              <div class="mt-2">
+                {% for opt in v.get_options() %}
+                  <span class="badge bg-light text-dark border me-1 mb-1">{{ opt }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Add variant form -->
+        <div class="border rounded-3 p-3 bg-light">
+          <h6 class="fw-semibold mb-3 small">Add Variant Group</h6>
+          <form method="POST" action="{{ url_for('admin.variant_add', design_id=pd.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <input type="text" name="variant_group" class="form-control form-control-sm"
+                       placeholder="Group (e.g. Sleeve Style)" required>
+              </div>
+              <div class="col-sm-4">
+                <input type="text" name="variant_options" class="form-control form-control-sm"
+                       placeholder="Options (comma-separated)" required>
+              </div>
+              <div class="col-sm-2">
+                <input type="number" name="price_modifier" class="form-control form-control-sm"
+                       placeholder="+₹ add-on" step="0.01" value="0">
+              </div>
+              <div class="col-sm-2">
+                <button class="btn btn-sm btn-brand-purple w-100">Add</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tailor Services Section -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-bold py-3">
+        <i class="bi bi-scissors me-2 text-brand-purple"></i>Tailors for this Design
+      </div>
+      <div class="card-body">
+        {% set svc_list = pd.tailor_services.all() %}
+        {% if svc_list %}
+        <div class="table-responsive mb-3">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Tailor</th>
+                <th>Price</th>
+                <th>Days</th>
+                <th>Expertise</th>
+                <th>Available</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for svc in svc_list %}
+              <tr>
+                <td class="fw-semibold small">{{ svc.tailor.shop_name }}</td>
+                <td>₹{{ svc.effective_price()|int }}</td>
+                <td>{{ svc.estimated_days }}d</td>
+                <td><span class="badge bg-{{ svc.expertise_badge() }}">{{ svc.expertise_level }}</span></td>
+                <td>
+                  {% if svc.is_available %}
+                    <span class="badge bg-success">Yes</span>
+                  {% else %}
+                    <span class="badge bg-secondary">No</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="POST" action="{{ url_for('admin.tailor_service_delete', service_id=svc.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger border-0"
+                            onclick="return confirm('Remove this tailor?')">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Add/update tailor service -->
+        <div class="border rounded-3 p-3 bg-light">
+          <h6 class="fw-semibold mb-3 small">Assign a Tailor</h6>
+          <form method="POST" action="{{ url_for('admin.tailor_service_save', design_id=pd.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2">
+              <div class="col-sm-4">
+                <select name="tailor_id" class="form-select form-select-sm" required>
+                  <option value="">— Select Tailor —</option>
+                  {% for t in tailors %}
+                  <option value="{{ t.id }}"
+                    {% if t.id in services %}selected{% endif %}>
+                    {{ t.shop_name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-sm-2">
+                <input type="number" name="custom_price" class="form-control form-control-sm"
+                       placeholder="Price (₹)" step="0.01" min="0">
+              </div>
+              <div class="col-sm-2">
+                <input type="number" name="estimated_days" class="form-control form-control-sm"
+                       placeholder="Days" value="7" min="1">
+              </div>
+              <div class="col-sm-2">
+                <select name="expertise_level" class="form-select form-select-sm">
+                  <option value="basic">Basic</option>
+                  <option value="intermediate" selected>Intermediate</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </div>
+              <div class="col-sm-1 d-flex align-items-center">
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" name="is_available" id="chkAvail" checked>
+                  <label class="form-check-label small" for="chkAvail">On</label>
+                </div>
+              </div>
+              <div class="col-sm-1">
+                <button class="btn btn-sm btn-brand-purple w-100">Save</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -2,196 +2,447 @@
 {% block title %}Custom Stitching, Delivered{% endblock %}
 {% block extra_head %}
 <style>
-.hero {
-  background: var(--brand-purple-dark);
-  background-image: radial-gradient(circle at 100% 0%, var(--brand-purple) 0%, transparent 60%);
+/* ── Page-level overrides ── */
+body { background: #fff; }
+
+/* Hero */
+.hero-section {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1d4ed8 100%);
+  min-height: 480px;
+  display: flex;
+  align-items: center;
   position: relative;
   overflow: hidden;
-  border-radius: 0 0 24px 24px;
 }
-.hero::after {
-  content: '';
-  position: absolute;
-  top: -10%; right: -5%;
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(225,29,72,0.15) 0%, transparent 60%);
-  border-radius: 50%;
-  pointer-events: none;
+.hero-section::before {
+  content:''; position:absolute; top:-20%; right:-8%;
+  width:560px; height:560px;
+  background: radial-gradient(circle, rgba(225,29,72,0.2) 0%, transparent 65%);
+  border-radius:50%; pointer-events:none;
 }
-.hero-image-placeholder {
-  font-size: 8rem;
-  line-height: 1;
-  text-shadow: 0 20px 40px rgba(0,0,0,0.3);
-  animation: float 6s ease-in-out infinite;
+.hero-section::after {
+  content:''; position:absolute; bottom:-25%; left:-5%;
+  width:400px; height:400px;
+  background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 65%);
+  border-radius:50%; pointer-events:none;
 }
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-  100% { transform: translateY(0px); }
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50rem; padding: 6px 16px;
+  font-size:.78rem; font-weight:600; color:#fff; letter-spacing:.03em;
+  text-transform: uppercase;
 }
-.step-icon { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; }
-.how-step { transition: transform .25s; }
-.how-step:hover { transform: translateY(-4px); }
+.hero-badge i { color: #fbbf24; }
+.hero-title {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800; line-height: 1.15;
+  letter-spacing: -0.04em; color: #fff;
+}
+.hero-title span { color: #fb7185; }
+.hero-sub { color: rgba(255,255,255,0.65); font-size:1rem; max-width:480px; line-height:1.7; }
+.hero-cta-primary {
+  background: #e11d48; color:#fff; border:none;
+  border-radius:50rem; padding: .75rem 2.25rem;
+  font-weight:700; font-size:.9375rem;
+  box-shadow: 0 4px 20px rgba(225,29,72,0.4);
+  transition: all .2s;
+}
+.hero-cta-primary:hover {
+  background: #be123c; color:#fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(225,29,72,0.45);
+}
+.hero-cta-secondary {
+  background: rgba(255,255,255,0.1); color:#fff;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius:50rem; padding: .75rem 2.25rem;
+  font-weight:600; font-size:.9375rem;
+  backdrop-filter: blur(8px);
+  transition: all .2s;
+}
+.hero-cta-secondary:hover {
+  background: rgba(255,255,255,0.2); color:#fff;
+  border-color: rgba(255,255,255,0.4);
+}
+@keyframes heroFloat {
+  0%,100%{transform:translateY(0) rotate(-2deg);}
+  50%{transform:translateY(-18px) rotate(2deg);}
+}
+.hero-emoji {
+  font-size: clamp(5rem, 10vw, 9rem); line-height:1;
+  animation: heroFloat 7s ease-in-out infinite;
+  filter: drop-shadow(0 20px 40px rgba(0,0,0,0.35));
+}
+
+/* Trust strip */
+.trust-strip {
+  background: #0f172a; border-top: 1px solid rgba(255,255,255,0.06);
+}
+.trust-item {
+  display:flex; align-items:center; gap:.5rem;
+  font-size:.78rem; font-weight:500; color:rgba(255,255,255,.6);
+  white-space:nowrap;
+}
+.trust-item i { color:#e11d48; font-size:.9rem; }
+.trust-item strong { color:rgba(255,255,255,.85); }
+
+/* Category grid */
+.category-card {
+  background: #fff; border: 1.5px solid #e2e8f0;
+  border-radius: 16px; padding: 1.25rem 1rem;
+  text-align:center; cursor:pointer; text-decoration:none;
+  transition: all .2s;
+  display: flex; flex-direction:column; align-items:center; gap:.5rem;
+}
+.category-card:hover {
+  border-color: #e11d48;
+  box-shadow: 0 8px 24px rgba(225,29,72,.12);
+  transform: translateY(-3px);
+}
+.category-icon {
+  font-size: 2.6rem; line-height:1; display:block;
+  transition: transform .2s;
+}
+.category-card:hover .category-icon { transform: scale(1.1); }
+.category-name { font-weight:700; font-size:.875rem; color:#0f172a; }
+.category-price { font-size:.78rem; font-weight:600; color:#e11d48; }
+
+/* How it works */
+.step-num {
+  width:40px; height:40px; border-radius:50%;
+  background: #e11d48; color:#fff;
+  font-weight:800; font-size:.9rem;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.step-line {
+  flex:1; height:2px;
+  background: linear-gradient(90deg, #e11d48, #fda4af);
+}
+
+/* Tailor card (homepage) */
+.tailor-hp-card {
+  background:#fff; border: 1.5px solid #e2e8f0;
+  border-radius:16px; overflow:hidden;
+  transition: all .2s; cursor:pointer; text-decoration:none;
+}
+.tailor-hp-card:hover {
+  border-color:#fecdd3;
+  box-shadow: 0 10px 28px rgba(15,23,42,.1);
+  transform: translateY(-3px);
+}
+.tailor-avatar {
+  width:56px; height:56px; border-radius:50%;
+  background: linear-gradient(135deg, #e11d48, #f43f5e);
+  color:#fff; font-weight:800; font-size:1.3rem;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.tailor-rating-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  background:#059669; color:#fff;
+  font-size:.7rem; font-weight:700;
+  padding: 2px 7px; border-radius:5px;
+}
+.open-badge {
+  font-size:.65rem; font-weight:700; padding: 2px 8px;
+  border-radius: 50rem; text-transform:uppercase; letter-spacing:.03em;
+}
+.open-badge.open { background:#dcfce7; color:#166534; }
+.open-badge.closed { background:#fee2e2; color:#991b1b; }
+
+/* App download banner */
+.app-banner {
+  background: linear-gradient(135deg, #1e293b, #1d4ed8);
+  border-radius: 20px; overflow:hidden;
+  position:relative;
+}
+.app-banner::after {
+  content:''; position:absolute; right:-5%; top:-10%;
+  width:280px; height:280px;
+  background: radial-gradient(circle, rgba(225,29,72,.15) 0%, transparent 60%);
+  border-radius:50%; pointer-events:none;
+}
+
+/* Section header */
+.sec-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:1.5rem; }
+.sec-title { font-size:1.375rem; font-weight:800; color:#0f172a; letter-spacing:-.02em; margin:0; }
+.sec-sub { font-size:.8125rem; color:#64748b; margin:.25rem 0 0; }
+.sec-link { font-size:.8125rem; font-weight:600; color:#e11d48; text-decoration:none; white-space:nowrap; }
+.sec-link:hover { color:#be123c; }
 </style>
 {% endblock %}
 {% block content %}
 
-{% set is_returning = current_user.is_authenticated and current_user.role == 'customer' and current_user.customer_orders.count() > 0 %}
-
-<!-- Hero -->
-<div class="hero text-white py-5 px-3 mb-4 shadow-sm">
-  <div class="container py-3 py-md-5">
-    <div class="row align-items-center g-4">
-      <div class="col-lg-7">
-        <span class="badge bg-white text-brand-purple fw-bold px-3 py-2 rounded-pill mb-4 shadow-sm" style="letter-spacing: 0.5px;">
-          <i class="bi bi-star-fill text-warning me-1"></i> PREMIUM TAILORING
-        </span>
-        <h1 class="display-4 fw-bolder mb-3 lh-sm" style="letter-spacing: -1px;">
-          Perfect fit,<br>delivered to you.
+<!-- ═══ HERO ═══ -->
+<section class="hero-section">
+  <div class="container py-5 position-relative" style="z-index:1;">
+    <div class="row align-items-center g-4 g-lg-5">
+      <div class="col-lg-7 col-xl-6">
+        <div class="mb-4">
+          <span class="hero-badge"><i class="bi bi-star-fill"></i>Premium Tailoring Marketplace</span>
+        </div>
+        <h1 class="hero-title mb-4">
+          Perfect fit,<br><span>delivered</span><br>to your door.
         </h1>
-        <p class="mb-5 text-white-50" style="font-size:1.15rem; max-width: 500px;">
-          Find top-rated tailors, customize your style, and track your stitching journey from fabric to finish.
+        <p class="hero-sub mb-5">
+          Connect with India's finest tailors. Choose your style, get measured at home, and receive your stitched outfit — all from the app.
         </p>
         <div class="d-flex gap-3 flex-wrap">
-          <a href="{{ url_for('customer.tailors') }}" class="btn btn-light text-dark fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
-            Explore Tailors
+          {% if current_user.is_authenticated and current_user.role == 'customer' %}
+          <a href="{{ url_for('customer.tailors') }}" class="hero-cta-primary">
+            <i class="bi bi-search me-2"></i>Find Tailors
           </a>
-          {% if not current_user.is_authenticated %}
-          <a href="{{ url_for('auth.register') }}" class="btn btn-brand-orange fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
-            Get Started
+          <a href="{{ url_for('customer.catalogue') }}" class="hero-cta-secondary">
+            <i class="bi bi-collection me-2"></i>Browse Catalogue
           </a>
           {% else %}
-          <a href="{{ url_for('customer.place_order') }}" class="btn btn-brand-orange fw-bold px-5 py-3 rounded-pill shadow-sm" style="font-size: 1.1rem; transition: transform 0.2s;">
-            <i class="bi bi-plus-lg me-2"></i>Place Order
+          <a href="{{ url_for('auth.register') }}" class="hero-cta-primary">
+            Get Started Free
+          </a>
+          <a href="{{ url_for('customer.tailors') }}" class="hero-cta-secondary">
+            <i class="bi bi-search me-2"></i>Explore Tailors
           </a>
           {% endif %}
         </div>
-      </div>
-      <div class="col-lg-5 text-center d-none d-lg-block position-relative">
-        <div class="hero-image-placeholder">✨👗✨</div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- How it works -->
-{% if not is_returning %}
-<div class="bg-white py-5">
-  <div class="container">
-    <div class="text-center mb-5">
-      <h2 class="fw-bold mb-2">How It Works</h2>
-      <p class="text-muted">Get your clothes stitched in 4 simple steps</p>
-    </div>
-    <div class="row g-4 text-center">
-      {% for icon, color, title, desc in [
-        ('bi-search',              'primary', 'Find a Tailor',       'Browse tailors by location, rating or specialization'),
-        ('bi-rulers',              'success', 'Share Measurements',  'Enter your measurements or let our agent measure you'),
-        ('bi-scissors',            'warning', 'Tailor Stitches',     'Delivery agent picks up your fabric and drops it to the tailor'),
-        ('bi-bag-check',           'info',    'Get it Delivered',    'Your finished clothes are delivered back to your door'),
-      ] %}
-      <div class="col-6 col-md-3 how-step">
-        <div class="step-icon bg-{{ color }} bg-opacity-10 mb-3">
-          <i class="bi {{ icon }} text-{{ color }} fs-4"></i>
+        <!-- Mini stats -->
+        <div class="d-flex gap-4 mt-5 flex-wrap">
+          <div>
+            <div style="font-size:1.4rem;font-weight:800;color:#fff;">500+</div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.5);font-weight:500;">Expert Tailors</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,.1);"></div>
+          <div>
+            <div style="font-size:1.4rem;font-weight:800;color:#fff;">10K+</div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.5);font-weight:500;">Orders Delivered</div>
+          </div>
+          <div style="width:1px;background:rgba(255,255,255,.1);"></div>
+          <div>
+            <div style="font-size:1.4rem;font-weight:800;color:#fff;">4.8★</div>
+            <div style="font-size:.75rem;color:rgba(255,255,255,.5);font-weight:500;">Avg. Rating</div>
+          </div>
         </div>
-        <div class="fw-bold mb-1">{{ title }}</div>
-        <div class="text-muted small">{{ desc }}</div>
       </div>
-      {% endfor %}
+      <div class="col-lg-5 col-xl-6 text-center d-none d-lg-block position-relative">
+        <div class="hero-emoji">👗</div>
+        <div class="position-absolute" style="top:10%;left:8%;">
+          <div class="glass px-3 py-2 rounded-3" style="border-radius:12px!important;">
+            <div class="d-flex align-items-center gap-2">
+              <span style="font-size:1.2rem;">✂️</span>
+              <div>
+                <div style="font-size:.7rem;font-weight:700;color:#0f172a;">Order Placed!</div>
+                <div style="font-size:.65rem;color:#64748b;">Stitching in progress</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="position-absolute" style="bottom:18%;right:5%;">
+          <div class="glass px-3 py-2" style="border-radius:12px!important;">
+            <div class="d-flex align-items-center gap-2">
+              <span style="font-size:1.2rem;">🚚</span>
+              <div>
+                <div style="font-size:.7rem;font-weight:700;color:#0f172a;">Ready for delivery</div>
+                <div style="font-size:.65rem;color:#64748b;">Est. 2 hours</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trust strip -->
+<div class="trust-strip py-3">
+  <div class="container">
+    <div class="d-flex gap-4 gap-md-5 overflow-auto" style="scrollbar-width:none;">
+      <div class="trust-item"><i class="bi bi-shield-check"></i><span><strong>Verified</strong> Tailors</span></div>
+      <div class="trust-item"><i class="bi bi-geo-alt-fill"></i><span><strong>Home</strong> Pickup</span></div>
+      <div class="trust-item"><i class="bi bi-arrow-clockwise"></i><span><strong>Free</strong> Alterations</span></div>
+      <div class="trust-item"><i class="bi bi-lock-fill"></i><span><strong>Secure</strong> Payments</span></div>
+      <div class="trust-item"><i class="bi bi-headset"></i><span><strong>24/7</strong> Support</span></div>
     </div>
   </div>
 </div>
-{% endif %}
 
-<!-- Design Categories -->
-<div class="py-5" style="background:var(--brand-purple-light);">
+<!-- ═══ SHOP BY CATEGORY ═══ -->
+<section class="py-5" style="background:#f8fafc;">
   <div class="container">
-    <div class="mb-4">
-      <h2 class="fw-bold mb-1">What Would You Like Stitched?</h2>
-      <p class="text-muted mb-0">Choose a design to find tailors who specialise in it</p>
+    <div class="sec-header">
+      <div>
+        <h2 class="sec-title">What would you like stitched?</h2>
+        <p class="sec-sub">Choose a design category to find specialised tailors</p>
+      </div>
+      <a href="{{ url_for('customer.tailors') }}" class="sec-link d-none d-md-inline">View All <i class="bi bi-arrow-right ms-1"></i></a>
     </div>
+
     <div class="row g-3">
       {% for design in designs %}
-      <div class="col-6 col-md-3">
-        <a href="{{ url_for('customer.tailors', design=design.name) }}" class="text-decoration-none">
-          <div class="design-card bg-white p-3 p-md-4 text-center shadow-sm h-100">
-            <div class="design-icon mb-2">
-              {% if design.name == 'Blouse' %}🪡
-              {% elif design.name == 'Lehenga' %}👗
-              {% elif design.name == 'Shirt' %}👔
-              {% elif design.name == 'Trouser' %}👖
-              {% else %}✂️{% endif %}
-            </div>
-            <div class="fw-bold">{{ design.name }}</div>
-            <div class="text-muted small mb-2 d-none d-sm-block">{{ design.description }}</div>
-            <div class="text-brand-orange fw-bold">from ₹{{ design.base_price|int }}</div>
-          </div>
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('customer.design_showcase', design_id=design.id) }}" class="category-card">
+          <span class="category-icon">
+            {% if design.name == 'Blouse' %}🪡
+            {% elif design.name == 'Lehenga' %}👗
+            {% elif design.name == 'Shirt' %}👔
+            {% elif design.name == 'Trouser' %}👖
+            {% elif design.name == 'Anarkali Suit' %}🥻
+            {% elif design.name == 'Gown' %}👑
+            {% elif design.name == 'Salwar Suit' %}🪷
+            {% else %}✂️{% endif %}
+          </span>
+          <span class="category-name">{{ design.name }}</span>
+          <span class="category-price">from ₹{{ design.base_price|int }}</span>
         </a>
       </div>
       {% endfor %}
     </div>
   </div>
-</div>
+</section>
 
-<!-- Featured Tailors -->
-<div class="py-5 bg-white">
+<!-- ═══ HOW IT WORKS (only for new visitors) ═══ -->
+{% set is_returning = current_user.is_authenticated and current_user.role == 'customer' and current_user.customer_orders.count() > 0 %}
+{% if not is_returning %}
+<section class="py-5 bg-white">
   <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-      <div>
-        <h2 class="fw-bold mb-1">Featured Tailors</h2>
-        <p class="text-muted mb-0 small">Verified, skilled, and ready to stitch</p>
-      </div>
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-purple rounded-pill px-4">View All</a>
+    <div class="text-center mb-5">
+      <h2 class="sec-title mb-2" style="text-align:center;">Stitching, simplified</h2>
+      <p class="sec-sub">4 steps from fabric to finished outfit</p>
     </div>
-    <div class="row g-3">
-      {% for t in featured_tailors %}
-      <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card border-0 shadow-sm tailor-card h-100">
-          <div class="card-body p-3 p-md-4">
-            <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold flex-shrink-0"
-                   style="width:48px;height:48px;font-size:1.2rem;">
-                {{ t.shop_name[0] }}
-              </div>
-              <div class="min-w-0">
-                <div class="fw-bold text-truncate">{{ t.shop_name }}</div>
-                <div class="text-muted small text-truncate">
-                  <i class="bi bi-geo-alt me-1"></i>{{ t.address[:40] }}{% if t.address|length > 40 %}…{% endif %}
-                </div>
-              </div>
-            </div>
-            <div class="d-flex gap-3 mb-3 text-muted small">
-              <span><i class="bi bi-star-fill text-warning me-1"></i>{{ '%.1f'|format(t.rating) }}</span>
-              <span><i class="bi bi-briefcase me-1"></i>{{ t.experience_years }} yrs</span>
-              <span class="badge {% if t.is_available %}bg-success{% else %}bg-danger{% endif %} ms-auto">
-                {% if t.is_available %}Open{% else %}Closed{% endif %}
-              </span>
-            </div>
-            <div class="mb-3">
-              {% for spec in t.get_specializations() %}
-              <span class="badge bg-light text-dark border me-1 mb-1">{{ spec }}</span>
-              {% endfor %}
-            </div>
-            <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}"
-               class="btn btn-brand-purple w-100 rounded-pill">
-              View &amp; Order
-            </a>
-          </div>
+
+    <div class="row g-4">
+      {% for icon, bg, title, desc in [
+        ('bi-search', 'rgba(225,29,72,.08)', 'Find a Tailor', 'Browse verified tailors by location, design & rating'),
+        ('bi-rulers', 'rgba(16,185,129,.08)', 'Get Measured', 'Our Style Agent visits your home to take measurements'),
+        ('bi-scissors', 'rgba(245,158,11,.08)', 'Stitching Begins', 'Your fabric is picked up and handed to the tailor'),
+        ('bi-bag-check', 'rgba(99,102,241,.08)', 'Receive at Home', 'Finished outfit delivered to your doorstep'),
+      ] %}
+      <div class="col-6 col-md-3 text-center how-step">
+        <div class="step-icon mb-3 mx-auto" style="background:{{ bg }};">
+          <i class="bi {{ icon }} fs-4" style="color:#e11d48;"></i>
         </div>
-      </div>
-      {% else %}
-      <div class="col-12 text-center text-muted py-4">
-        No tailors yet.
-        <a href="{{ url_for('auth.register') }}">Register as a tailor</a>
+        <div class="fw-bold mb-1" style="font-size:.9375rem;">{{ title }}</div>
+        <div class="text-muted small">{{ desc }}</div>
       </div>
       {% endfor %}
     </div>
   </div>
-</div>
+</section>
+{% endif %}
 
-<!-- Footer -->
-<footer class="py-4 text-center" style="background:#1e1b4b;">
-  <div style="color:#c7d2fe;font-size:.875rem;">
-    © 2025 TailorApp &nbsp;·&nbsp; Custom stitching, delivered.
+<!-- ═══ FEATURED TAILORS ═══ -->
+<section class="py-5" style="background:{% if is_returning %}#f8fafc{% else %}#fff{% endif %};">
+  <div class="container">
+    <div class="sec-header">
+      <div>
+        <h2 class="sec-title">Featured Tailors</h2>
+        <p class="sec-sub">Verified experts ready to stitch</p>
+      </div>
+      <a href="{{ url_for('customer.tailors') }}" class="sec-link">See all <i class="bi bi-arrow-right ms-1"></i></a>
+    </div>
+
+    <div class="row g-3">
+      {% for t in featured_tailors %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id) }}" class="tailor-hp-card d-block p-0" style="text-decoration:none;">
+          <!-- Color banner -->
+          <div style="height:6px;background:linear-gradient(90deg,#e11d48,#f97316);"></div>
+          <div class="p-3 p-md-4">
+            <div class="d-flex align-items-start gap-3 mb-3">
+              <div class="tailor-avatar">{{ t.shop_name[0].upper() }}</div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                  <div class="fw-bold text-truncate" style="color:#0f172a;font-size:.9375rem;">{{ t.shop_name }}</div>
+                  <span class="open-badge {% if t.is_available %}open{% else %}closed{% endif %} flex-shrink-0">
+                    {% if t.is_available %}Open{% else %}Closed{% endif %}
+                  </span>
+                </div>
+                <div class="text-muted small text-truncate mt-1">
+                  <i class="bi bi-geo-alt me-1"></i>{{ t.address[:42] }}{% if t.address|length > 42 %}…{% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  {% if t.rating_count > 0 %}
+                  <span class="tailor-rating-badge"><i class="bi bi-star-fill" style="font-size:.6rem;"></i>{{ '%.1f'|format(t.rating) }}</span>
+                  <span class="text-muted" style="font-size:.75rem;">({{ t.rating_count }})</span>
+                  {% else %}
+                  <span class="text-muted" style="font-size:.75rem;">No reviews yet</span>
+                  {% endif %}
+                  <span class="text-muted" style="font-size:.75rem;"><i class="bi bi-briefcase me-1"></i>{{ t.experience_years }} yrs</span>
+                </div>
+              </div>
+            </div>
+
+            {% if t.bio %}
+            <p class="text-muted mb-3" style="font-size:.8125rem;
+               display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+              {{ t.bio }}
+            </p>
+            {% endif %}
+
+            <div class="d-flex flex-wrap gap-1 mb-3">
+              {% for spec in t.get_specializations() %}
+              <span class="tag-chip">{{ spec }}</span>
+              {% endfor %}
+            </div>
+
+            <div class="btn btn-brand-orange w-100" style="font-size:.8125rem;">
+              <i class="bi bi-scissors me-2"></i>View & Order
+            </div>
+          </div>
+        </a>
+      </div>
+      {% else %}
+      <div class="col-12 text-center py-5 text-muted">
+        <i class="bi bi-scissors display-4 opacity-25 d-block mb-3"></i>
+        No tailors yet. <a href="{{ url_for('auth.register') }}" style="color:#e11d48;">Register as a tailor</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer style="background:#0f172a; color:rgba(255,255,255,.5);">
+  <div class="container py-5">
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.5rem;font-weight:800;color:#fff;margin-bottom:.75rem;">
+          <span style="color:#e11d48;">✂</span> TailorApp
+        </div>
+        <p style="font-size:.8125rem;line-height:1.7;">
+          India's premium tailoring marketplace. Custom stitching, delivered to your door.
+        </p>
+      </div>
+      <div class="col-6 col-md-2 offset-md-2">
+        <div style="font-size:.75rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem;">Shop</div>
+        <ul class="list-unstyled" style="font-size:.8125rem;">
+          <li class="mb-2"><a href="{{ url_for('customer.tailors') }}" style="color:rgba(255,255,255,.5);text-decoration:none;" class="hover-rose">Find Tailors</a></li>
+          <li class="mb-2"><a href="{{ url_for('customer.catalogue') }}" style="color:rgba(255,255,255,.5);text-decoration:none;">Catalogue</a></li>
+          {% if current_user.is_authenticated %}<li class="mb-2"><a href="{{ url_for('customer.my_orders') }}" style="color:rgba(255,255,255,.5);text-decoration:none;">My Orders</a></li>{% endif %}
+        </ul>
+      </div>
+      <div class="col-6 col-md-2">
+        <div style="font-size:.75rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.75rem;">Company</div>
+        <ul class="list-unstyled" style="font-size:.8125rem;">
+          <li class="mb-2"><a href="{{ url_for('auth.register') }}" style="color:rgba(255,255,255,.5);text-decoration:none;">Join as Tailor</a></li>
+          <li class="mb-2"><a href="#" style="color:rgba(255,255,255,.5);text-decoration:none;">About</a></li>
+          <li class="mb-2"><a href="#" style="color:rgba(255,255,255,.5);text-decoration:none;">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-top mt-4 pt-4 d-flex justify-content-between align-items-center flex-wrap gap-3"
+         style="border-color:rgba(255,255,255,.08)!important;">
+      <div style="font-size:.78rem;">© 2026 TailorApp · Custom stitching, delivered.</div>
+      <div class="d-flex gap-3">
+        <a href="#" style="color:rgba(255,255,255,.4);font-size:1.1rem;"><i class="bi bi-instagram"></i></a>
+        <a href="#" style="color:rgba(255,255,255,.4);font-size:1.1rem;"><i class="bi bi-twitter-x"></i></a>
+        <a href="#" style="color:rgba(255,255,255,.4);font-size:1.1rem;"><i class="bi bi-facebook"></i></a>
+      </div>
+    </div>
   </div>
 </footer>
+
 {% endblock %}

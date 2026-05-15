@@ -1,114 +1,229 @@
 {% extends "base.html" %}
 {% block title %}My Cart{% endblock %}
+{% block extra_head %}
+<style>
+body { background: #f8fafc; }
+.page-header { background:#fff; border-bottom:1px solid #e2e8f0; padding:1.25rem 0; margin-bottom:1.5rem; }
+
+/* Cart item card */
+.cart-item {
+  background:#fff; border:1.5px solid #e2e8f0; border-radius:16px;
+  overflow:hidden; transition:all .2s;
+}
+.cart-item:hover { border-color:#fecdd3; box-shadow:0 4px 16px rgba(15,23,42,.07); }
+.cart-item-bar { height:3px; background:linear-gradient(90deg,#e11d48,#f97316); }
+.cart-avatar {
+  width:46px; height:46px; border-radius:12px; flex-shrink:0;
+  background:linear-gradient(135deg,#e11d48,#f43f5e);
+  color:#fff; font-weight:800; font-size:1.1rem;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 8px rgba(225,29,72,.22);
+}
+.design-pill {
+  display:inline-flex; align-items:center; gap:.3rem;
+  background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;
+  padding:.25rem .6rem; font-size:.75rem; font-weight:600; color:#334155;
+}
+.measure-chip {
+  display:inline-flex; align-items:center; gap:.3rem;
+  background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px;
+  padding:.2rem .55rem; font-size:.72rem; font-weight:600; color:#1d4ed8;
+}
+.qty-btn {
+  width:28px; height:28px; border-radius:50%; border:1.5px solid #e2e8f0;
+  background:#fff; color:#334155; font-size:.9rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .15s; padding:0; line-height:1;
+}
+.qty-btn:hover:not(:disabled) { border-color:#e11d48; color:#e11d48; background:#fff1f2; }
+.qty-btn:disabled { opacity:.35; cursor:not-allowed; }
+.qty-val { font-size:.875rem; font-weight:700; color:#0f172a; min-width:1.5rem; text-align:center; }
+.remove-btn { font-size:.75rem; font-weight:600; color:#94a3b8; background:none; border:none; cursor:pointer; padding:0; transition:color .15s; }
+.remove-btn:hover { color:#e11d48; }
+
+/* Checkout panel */
+.checkout-panel {
+  background:#fff; border:1.5px solid #e2e8f0; border-radius:16px;
+  overflow:hidden; position:sticky; top:80px;
+}
+.checkout-panel-head {
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  padding:1rem 1.25rem; color:#fff;
+}
+.form-field-label {
+  font-size:.72rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; color:#64748b; margin-bottom:.4rem; display:block;
+}
+.form-control-flat {
+  width:100%; border:1.5px solid #e2e8f0; border-radius:10px;
+  padding:.55rem .875rem; font-size:.8125rem; color:#0f172a;
+  background:#fff; outline:none; transition:border-color .15s, box-shadow .15s;
+  font-family:inherit;
+}
+.form-control-flat:focus {
+  border-color:#e11d48; box-shadow:0 0 0 3px rgba(225,29,72,.1);
+}
+.form-control-flat::placeholder { color:#94a3b8; }
+.select-flat {
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right .75rem center; padding-right:2rem;
+}
+.coupon-row { display:flex; gap:.5rem; }
+.coupon-row .form-control-flat { border-radius:10px 0 0 10px; }
+.coupon-btn {
+  border:1.5px solid #e11d48; background:#fff1f2; color:#e11d48;
+  border-radius:0 10px 10px 0; padding:.55rem .875rem;
+  font-size:.78rem; font-weight:700; cursor:pointer; white-space:nowrap;
+  transition:all .15s;
+}
+.coupon-btn:hover { background:#e11d48; color:#fff; }
+
+/* Summary rows */
+.summary-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.5rem; }
+.summary-label { font-size:.78rem; color:#64748b; }
+.summary-val { font-size:.78rem; font-weight:600; color:#334155; }
+.summary-total { border-top:1.5px dashed #e2e8f0; padding-top:.75rem; margin-top:.25rem; }
+.summary-total .summary-label { font-size:.875rem; font-weight:700; color:#0f172a; }
+.summary-total .summary-val { font-size:1.0625rem; font-weight:800; color:#e11d48; }
+
+/* Style agent section */
+.slot-section { background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:1rem; }
+.slot-section-title { font-size:.78rem; font-weight:700; color:#334155; display:flex; align-items:center; gap:.4rem; margin-bottom:.5rem; }
+
+/* Place order button */
+.place-order-btn {
+  width:100%; background:linear-gradient(135deg,#e11d48,#f43f5e);
+  color:#fff; border:none; border-radius:12px; padding:.8rem 1rem;
+  font-size:.9375rem; font-weight:700; cursor:pointer;
+  transition:all .2s; box-shadow:0 4px 14px rgba(225,29,72,.3);
+  letter-spacing:.01em;
+}
+.place-order-btn:hover { background:linear-gradient(135deg,#be123c,#e11d48); transform:translateY(-1px); box-shadow:0 6px 18px rgba(225,29,72,.35); }
+.place-order-btn:active { transform:translateY(0); }
+
+/* Empty cart */
+.empty-cart { text-align:center; padding:5rem 1rem; background:#fff; border-radius:16px; border:1.5px solid #e2e8f0; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="container py-4" style="max-width:900px;">
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <h3 class="fw-bold mb-0"><i class="bi bi-cart3 me-2 text-brand-purple"></i>My Cart</h3>
-    {% if items %}
-    <span class="badge bg-brand-purple rounded-pill">{{ items|length }} item{{ 's' if items|length != 1 }}</span>
-    {% endif %}
+
+<div class="page-header">
+  <div class="container px-3 px-md-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h4 class="fw-bold mb-0" style="color:#0f172a;">
+          My Cart
+          {% if items %}
+          <span class="ms-2 px-2 py-1 rounded-pill" style="background:#fff1f2;color:#e11d48;font-size:.75rem;font-weight:700;vertical-align:middle;">{{ items|length }} item{{ 's' if items|length != 1 }}</span>
+          {% endif %}
+        </h4>
+        <p class="text-muted mb-0 mt-1" style="font-size:.8125rem;">Review and checkout your stitching orders</p>
+      </div>
+      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-secondary rounded-pill px-4" style="font-size:.8125rem;">
+        <i class="bi bi-plus-lg me-1"></i>Add More
+      </a>
+    </div>
   </div>
+</div>
+
+<div class="container px-3 px-md-4 pb-5">
 
   {% if items %}
   <div class="row g-4">
+
+    <!-- Left: Cart Items -->
     <div class="col-lg-7">
-
-      <!-- Cart Items -->
-      {% for item in items %}
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-4">
-          <div class="d-flex align-items-start justify-content-between gap-3">
-            <div class="d-flex align-items-start gap-3 flex-grow-1">
-              <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold flex-shrink-0" style="width:48px;height:48px;font-size:1.3rem;">
-                {{ item.tailor.shop_name[0] }}
-              </div>
-              <div class="flex-grow-1">
-                <div class="fw-bold">{{ item.design.name }}</div>
-                <div class="text-muted small"><i class="bi bi-scissors me-1"></i>{{ item.tailor.shop_name }}</div>
-                <div class="text-muted small"><i class="bi bi-geo-alt me-1"></i>{{ item.tailor.address[:50] }}{% if item.tailor.address|length > 50 %}…{% endif %}</div>
-
-                <div class="mt-2 d-flex flex-wrap gap-2">
-                  <span class="badge bg-light text-dark border">
+      <div class="d-flex flex-column gap-3">
+        {% for item in items %}
+        <div class="cart-item">
+          <div class="cart-item-bar"></div>
+          <div class="p-3 p-md-4">
+            <div class="d-flex align-items-start gap-3">
+              <div class="cart-avatar">{{ item.tailor.shop_name[0].upper() }}</div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="fw-bold mb-1" style="color:#0f172a;font-size:.9375rem;">{{ item.tailor.shop_name }}</div>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                  <span class="design-pill"><i class="bi bi-scissors" style="color:#64748b;font-size:.7rem;"></i>{{ item.design.name }}</span>
+                  <span class="measure-chip">
                     {% if item.measurement_preference == 'delivery_will_measure' %}
-                      <i class="bi bi-person-badge me-1"></i>Agent measures
+                    <i class="bi bi-person-badge" style="font-size:.65rem;"></i>Agent measures
                     {% elif item.measurement_preference == 'use_saved' %}
-                      <i class="bi bi-bookmark-check me-1"></i>Using saved
+                    <i class="bi bi-bookmark-check" style="font-size:.65rem;"></i>Saved measurements
                     {% else %}
-                      <i class="bi bi-rulers me-1"></i>Self-entered
+                    <i class="bi bi-rulers" style="font-size:.65rem;"></i>Self-entered
                     {% endif %}
                   </span>
-                  {% if item.fabric_description %}
-                  <span class="badge bg-light text-dark border text-truncate" style="max-width:180px;" title="{{ item.fabric_description }}">
-                    <i class="bi bi-layers me-1"></i>{{ item.fabric_description[:30] }}{% if item.fabric_description|length > 30 %}…{% endif %}
-                  </span>
-                  {% endif %}
                 </div>
+                {% if item.fabric_description %}
+                <div class="text-muted mb-2" style="font-size:.75rem;"><i class="bi bi-layers me-1"></i>{{ item.fabric_description[:50] }}{% if item.fabric_description|length > 50 %}…{% endif %}</div>
+                {% endif %}
+                {% set svars = item.get_selected_variants() %}
+                {% if svars %}
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  {% for grp, opt in svars.items() %}
+                  <span class="badge rounded-pill" style="background:#f1f5f9;color:#334155;font-size:.65rem;font-weight:500;border:1px solid #e2e8f0;">{{ grp }}: {{ opt }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+                <div class="text-muted" style="font-size:.72rem;"><i class="bi bi-geo-alt me-1"></i>{{ item.tailor.address[:45] }}{% if item.tailor.address|length > 45 %}…{% endif %}</div>
               </div>
-            </div>
-            <div class="text-end flex-shrink-0">
-              <div class="fw-bold text-brand-orange fs-5">₹{{ item.effective_price|int }}</div>
-
-              <div class="d-flex align-items-center justify-content-end gap-2 mt-2 mb-2">
-                <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
+              <div class="text-end flex-shrink-0">
+                <div class="fw-bold mb-2" style="color:#e11d48;font-size:1rem;">₹{{ item.effective_price|int }}</div>
+                <div class="d-flex align-items-center gap-2 justify-content-end mb-2">
+                  <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="decrease">
+                    <button type="submit" class="qty-btn" {% if item.quantity <= 1 %}disabled{% endif %}>−</button>
+                  </form>
+                  <span class="qty-val">{{ item.quantity }}</span>
+                  <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="increase">
+                    <button type="submit" class="qty-btn">+</button>
+                  </form>
+                </div>
+                <form method="POST" action="{{ url_for('customer.cart_remove', item_id=item.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="action" value="decrease">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:28px;height:28px;padding:0;" {% if item.quantity <= 1 %}disabled{% endif %}>-</button>
-                </form>
-                <span class="fw-bold" style="min-width:1rem;text-align:center;">{{ item.quantity }}</span>
-                <form method="POST" action="{{ url_for('customer.cart_update', item_id=item.id) }}" style="margin:0;">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="action" value="increase">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:28px;height:28px;padding:0;">+</button>
+                  <button type="submit" class="remove-btn"><i class="bi bi-trash3 me-1"></i>Remove</button>
                 </form>
               </div>
-
-              <form method="POST" action="{{ url_for('customer.cart_remove', item_id=item.id) }}" class="mt-1">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm text-danger p-0" style="font-size:0.85rem;background:none;border:none;">
-                  <i class="bi bi-trash me-1"></i>Remove
-                </button>
-              </form>
             </div>
           </div>
         </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-secondary rounded-pill px-4">
-        <i class="bi bi-plus me-1"></i>Add More Items
-      </a>
     </div>
 
-    <!-- Checkout Panel -->
+    <!-- Right: Checkout Panel -->
     <div class="col-lg-5">
-      <div class="card border-0 shadow-sm checkout-panel-sticky" style="top:80px;">
-        <div class="card-header bg-white fw-semibold py-3">
-          <i class="bi bi-bag-check me-2"></i>Checkout
+      <div class="checkout-panel">
+        <div class="checkout-panel-head">
+          <div class="fw-bold" style="font-size:.9375rem;"><i class="bi bi-bag-check me-2" style="color:#fecdd3;"></i>Checkout</div>
+          <div style="font-size:.75rem;color:#94a3b8;margin-top:.2rem;">{{ items|length }} item{{ 's' if items|length != 1 }} · Est. ₹{{ total|int }}</div>
         </div>
-        <div class="card-body p-4">
+        <div class="p-3 p-md-4">
           <form method="POST" action="{{ url_for('customer.cart_checkout') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <!-- Addresses -->
+            <!-- Pickup Address -->
             <div class="mb-3">
-              <label class="form-label fw-semibold small">
-                <i class="bi bi-geo-alt-fill text-danger me-1"></i>Pickup Address <span class="text-danger">*</span>
-              </label>
-              <input type="text" name="pickup_address" class="form-control form-control-sm"
+              <label class="form-field-label"><i class="bi bi-geo-alt-fill me-1" style="color:#e11d48;"></i>Pickup Address <span style="color:#e11d48;">*</span></label>
+              <input type="text" name="pickup_address" class="form-control-flat"
                      value="{{ default_pickup }}" placeholder="Where agent collects your fabric" required>
             </div>
+
+            <!-- Delivery Address -->
             <div class="mb-3">
-              <label class="form-label fw-semibold small">
-                <i class="bi bi-geo-alt-fill text-success me-1"></i>Delivery Address <span class="text-danger">*</span>
-              </label>
-              <input type="text" name="delivery_address" class="form-control form-control-sm"
+              <label class="form-field-label"><i class="bi bi-geo-alt-fill me-1" style="color:#059669;"></i>Delivery Address <span style="color:#e11d48;">*</span></label>
+              <input type="text" name="delivery_address" class="form-control-flat"
                      value="{{ default_delivery }}" placeholder="Where to deliver finished clothes" required>
             </div>
 
-            <!-- Payment -->
+            <!-- Payment Method -->
             <div class="mb-3">
-              <label class="form-label fw-semibold small">Payment Method</label>
-              <select name="payment_method" class="form-select form-select-sm">
+              <label class="form-field-label"><i class="bi bi-credit-card me-1"></i>Payment Method</label>
+              <select name="payment_method" class="form-control-flat select-flat">
                 <option value="cod">Cash on Delivery</option>
                 <option value="online">Online Payment</option>
                 <option value="cash">Cash to Tailor</option>
@@ -117,47 +232,74 @@
 
             <!-- Coupon -->
             <div class="mb-3">
-              <label class="form-label fw-semibold small">Coupon Code</label>
-              <input type="text" name="coupon_code" class="form-control form-control-sm"
-                     placeholder="Optional — applied to each item" style="text-transform:uppercase;">
+              <label class="form-field-label"><i class="bi bi-tag me-1"></i>Coupon Code</label>
+              <div class="coupon-row">
+                <input type="text" name="coupon_code" class="form-control-flat"
+                       placeholder="Enter coupon" style="text-transform:uppercase;border-radius:10px;">
+              </div>
             </div>
+
+            <!-- Style Agent Slot Booking -->
+            {% if admin_config.enable_style_agent_slot_booking %}
+            <div class="slot-section mb-3">
+              <div class="slot-section-title">
+                <i class="bi bi-calendar-check" style="color:#e11d48;"></i>
+                Style Agent Visit Slot
+              </div>
+              <p class="text-muted mb-3" style="font-size:.75rem;">Our style agent will visit your home to take measurements</p>
+
+              <div class="mb-2">
+                <label class="form-field-label">Date <span style="color:#e11d48;">*</span></label>
+                <input type="date" name="style_agent_date" class="form-control-flat"
+                       min="{{ min_date }}" max="{{ max_date }}" required>
+              </div>
+              <div>
+                <label class="form-field-label">Time Slot <span style="color:#e11d48;">*</span></label>
+                <select name="style_agent_time" class="form-control-flat select-flat" required>
+                  <option value="">Select a time slot</option>
+                  {% for slot in slots %}
+                  <option value="{{ slot }}">{{ slot }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            {% endif %}
 
             <!-- Order Summary -->
-            <div class="bg-light rounded p-3 mb-3">
+            <div class="rounded-3 p-3 mb-4" style="background:#f8fafc;border:1.5px solid #e2e8f0;">
+              <div class="fw-bold mb-2" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:#64748b;">Order Summary</div>
               {% for item in items %}
-              <div class="d-flex justify-content-between small mb-1">
-                <span class="text-muted">{{ item.design.name }} <span class="text-muted opacity-50">@ {{ item.tailor.shop_name[:20] }}</span></span>
-                <span>₹{{ item.effective_price|int }}</span>
+              <div class="summary-row">
+                <span class="summary-label text-truncate me-2" style="max-width:65%;">{{ item.design.name }} <span style="opacity:.6;">@ {{ item.tailor.shop_name[:18] }}</span></span>
+                <span class="summary-val">₹{{ item.effective_price|int }}</span>
               </div>
               {% endfor %}
-              <hr class="my-2">
-              <div class="d-flex justify-content-between fw-bold">
-                <span>Estimated Total</span>
-                <span class="text-brand-orange">₹{{ total|int }}</span>
+              <div class="summary-row summary-total mt-2">
+                <span class="summary-label">Estimated Total</span>
+                <span class="summary-val">₹{{ total|int }}</span>
               </div>
-              <div class="text-muted small mt-1">Final price set by each tailor on acceptance.</div>
+              <div class="text-muted mt-1" style="font-size:.7rem;">Final price confirmed by each tailor after acceptance.</div>
             </div>
 
-            <button type="submit" class="btn btn-brand-purple w-100 fw-semibold rounded-pill py-2">
+            <button type="submit" class="place-order-btn">
               <i class="bi bi-bag-check me-2"></i>Place {{ items|length }} Order{{ 's' if items|length != 1 }}
             </button>
           </form>
         </div>
       </div>
     </div>
+
+  </div>
+  {% else %}
+
+  <!-- Empty Cart -->
+  <div class="empty-cart">
+    <div style="font-size:3.5rem;margin-bottom:1rem;">🛍️</div>
+    <h5 class="fw-bold mb-2" style="color:#0f172a;">Your cart is empty</h5>
+    <p class="text-muted mb-4" style="font-size:.875rem;max-width:320px;margin:0 auto .75rem;">Browse tailors, explore designs, and add your favourite stitching to cart</p>
+    <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-orange px-5"><i class="bi bi-search me-2"></i>Find Tailors</a>
   </div>
 
-  {% else %}
-  <div class="card border-0 shadow-sm">
-    <div class="card-body text-center py-5">
-      <i class="bi bi-cart-x display-3 text-muted opacity-30"></i>
-      <h5 class="mt-3 text-muted">Your cart is empty</h5>
-      <p class="text-muted small">Browse tailors and add designs to your cart before checking out.</p>
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-purple rounded-pill px-4 mt-2">
-        <i class="bi bi-search me-2"></i>Find Tailors
-      </a>
-    </div>
-  </div>
   {% endif %}
 </div>
 {% endblock %}

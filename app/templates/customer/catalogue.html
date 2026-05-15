@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <div class="mb-4">
+    <h3 class="fw-bold"><i class="bi bi-collection me-2 text-brand-purple"></i>Fashion Catalogue</h3>
+    <p class="text-muted">Choose a category to explore designs, variants, and available tailors.</p>
+  </div>
+
+  <div class="row g-3">
+    {% for cat in categories %}
+    <div class="col-6 col-md-4 col-lg-3">
+      <a href="{{ url_for('customer.catalogue_category', category_id=cat.id) }}"
+         class="card border-0 shadow-sm text-decoration-none h-100 catalogue-card">
+        <div class="card-body text-center py-4">
+          <div class="catalogue-icon mb-3">
+            <i class="bi {{ cat.icon }} fs-1 text-brand-purple"></i>
+          </div>
+          <h5 class="fw-bold mb-1 text-dark">{{ cat.name }}</h5>
+          <p class="text-muted small mb-2">{{ cat.description or '' }}</p>
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <span class="badge bg-brand-purple-light text-brand-purple">
+              {{ cat.sub_count }} design{{ 's' if cat.sub_count != 1 else '' }}
+            </span>
+            <span class="badge bg-light text-dark border">From ₹{{ cat.base_price|int }}</span>
+          </div>
+        </div>
+        <div class="card-footer bg-brand-purple text-white text-center py-2 small fw-semibold">
+          Explore <i class="bi bi-arrow-right ms-1"></i>
+        </div>
+      </a>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 text-muted">
+      <i class="bi bi-collection fs-1 opacity-25 d-block mb-3"></i>
+      Catalogue coming soon. Check back later!
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Book Style Agent CTA -->
+  <div class="card border-0 bg-brand-purple text-white mt-5 rounded-4">
+    <div class="card-body d-flex flex-column flex-md-row align-items-center gap-3 p-4">
+      <div class="flex-grow-1">
+        <h5 class="fw-bold mb-1"><i class="bi bi-person-badge me-2"></i>Need Measurements Taken at Home?</h5>
+        <p class="mb-0 opacity-75">Book a Style Agent visit — we come to you for measurements and fabric pickup.</p>
+      </div>
+      <a href="{{ url_for('customer.book_appointment') }}" class="btn btn-light text-brand-purple fw-semibold flex-shrink-0">
+        Book Style Agent
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+.catalogue-card { transition: transform .15s, box-shadow .15s; }
+.catalogue-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(111,66,193,.15) !important; }
+.catalogue-icon { width: 70px; height: 70px; background: rgba(111,66,193,.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; }
+</style>
+{% endblock %}

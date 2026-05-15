@@ -1,227 +1,317 @@
 {% extends "base.html" %}
 {% block title %}Find Tailors{% endblock %}
 {% block extra_head %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  #map { height: 280px; border-radius: 12px; }
-  @media(min-width:768px){ #map { height: 340px; } }
+body { background: #f8fafc; }
+
+.filter-bar {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: .65rem 1rem;
+  position: sticky;
+  top: 64px;
+  z-index: 99;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+
+/* Search box Myntra-style */
+.search-box {
+  display:flex; align-items:center;
+  background: #f1f5f9; border: 1.5px solid #e2e8f0;
+  border-radius: 50rem; padding: .4rem .4rem .4rem 1rem;
+  gap:.5rem; transition: border-color .15s, box-shadow .15s;
+  flex:1;
+}
+.search-box:focus-within {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225,29,72,.1);
+  background: #fff;
+}
+.search-box input {
+  border:none; background:transparent; outline:none;
+  font-size:.875rem; color:#0f172a; flex:1; min-width:0;
+  font-family: inherit;
+}
+.search-box input::placeholder { color:#94a3b8; }
+.search-box .search-btn {
+  background:#e11d48; color:#fff; border:none;
+  border-radius:50rem; padding:.35rem .9rem;
+  font-size:.8rem; font-weight:600; cursor:pointer;
+  transition:background .15s;
+  white-space:nowrap;
+}
+.search-box .search-btn:hover { background:#be123c; }
+
+/* Filter pills row */
+.filter-pills { display:flex; gap:.5rem; overflow-x:auto; scrollbar-width:none; padding:.1rem 0; }
+.filter-pills::-webkit-scrollbar { display:none; }
+.f-pill {
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.3rem .875rem; border-radius:50rem;
+  font-size:.78rem; font-weight:600;
+  border: 1.5px solid #e2e8f0; background:#fff; color:#334155;
+  cursor:pointer; white-space:nowrap;
+  transition: all .15s; text-decoration:none;
+}
+.f-pill:hover, .f-pill.on {
+  border-color:#e11d48; background:#fff1f2; color:#e11d48;
+}
+.f-pill i { font-size:.75rem; }
+
+/* Sort/filter selects */
+.filter-select {
+  border: 1.5px solid #e2e8f0; border-radius:50rem;
+  background:#fff; color:#334155;
+  font-size:.78rem; font-weight:600; padding:.3rem .75rem;
+  cursor:pointer; outline:none; transition:border-color .15s;
+  appearance:none; -webkit-appearance:none;
+  padding-right:1.5rem;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right .6rem center;
+}
+.filter-select:focus { border-color:#e11d48; }
+
+/* Results header */
+.results-header { font-size:.8125rem; color:#64748b; font-weight:500; }
+
+/* Tailor card — Zomato restaurant style */
+.tailor-card {
+  background:#fff; border:1.5px solid #e2e8f0;
+  border-radius:16px; overflow:hidden;
+  transition:all .2s; cursor:pointer;
+}
+.tailor-card:hover {
+  border-color:#fecdd3;
+  box-shadow: 0 8px 28px rgba(15,23,42,.09);
+  transform:translateY(-2px);
+}
+.tc-banner {
+  height:5px;
+  background:linear-gradient(90deg,#e11d48,#f97316);
+}
+.tc-avatar {
+  width:52px; height:52px; border-radius:12px;
+  background:linear-gradient(135deg,#e11d48,#f43f5e);
+  color:#fff; font-weight:800; font-size:1.2rem;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; box-shadow:0 2px 8px rgba(225,29,72,.25);
+}
+.tc-name { font-weight:700; font-size:.9375rem; color:#0f172a; }
+.tc-addr { font-size:.78rem; color:#64748b; }
+.tc-dist { font-size:.75rem; font-weight:700; color:#e11d48; }
+.tc-rating {
+  display:inline-flex; align-items:center; gap:3px;
+  background:#059669; color:#fff; font-size:.7rem; font-weight:700;
+  padding:2px 7px; border-radius:5px;
+}
+.tc-rating.mid { background:#d97706; }
+.tc-rating.low  { background:#dc2626; }
+.tc-meta { font-size:.75rem; color:#64748b; font-weight:500; }
+.tc-bio {
+  font-size:.8125rem; color:#64748b; line-height:1.55;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.tc-spec-tag {
+  display:inline-block; padding:.15rem .6rem;
+  background:#f1f5f9; color:#334155;
+  border-radius:50rem; font-size:.72rem; font-weight:600; border:1px solid #e2e8f0;
+}
+
+/* Empty state */
+.empty-state { text-align:center; padding:4rem 1rem; }
+.empty-state-icon { font-size:4rem; opacity:.2; display:block; margin-bottom:1rem; }
 </style>
 {% endblock %}
 {% block content %}
 
-<!-- Filter Bar -->
-<div class="filter-bar shadow-sm" style="top:56px;">
+<!-- ── Filter bar ── -->
+<div class="filter-bar">
   <form method="GET" action="{{ url_for('customer.tailors') }}" id="filterForm">
 
-    <!-- Mobile: single row with search + toggle -->
-    <div class="d-flex gap-2 align-items-center mb-2 mb-md-0">
-      <div class="input-group flex-grow-1">
-        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" name="search" value="{{ search }}" class="form-control border-start-0"
-               placeholder="Search shop or area…">
+    <div class="d-flex gap-2 align-items-center mb-2">
+      <!-- Search -->
+      <div class="search-box">
+        <i class="bi bi-search" style="color:#94a3b8;flex-shrink:0;"></i>
+        <input type="text" name="search" value="{{ search }}" placeholder="Search tailor or area…">
+        <button type="submit" class="search-btn d-none d-sm-block">Search</button>
       </div>
+
       <!-- Mobile filter toggle -->
-      <button type="button" class="btn btn-outline-secondary filter-collapse-toggle rounded-pill px-3"
-              onclick="toggleFilters()" id="filterToggleBtn">
-        <i class="bi bi-sliders me-1"></i>Filters
-        {% if design_filter or min_rating or sort_by %}<span class="badge bg-brand-purple ms-1" style="font-size:.6rem;">ON</span>{% endif %}
-      </button>
-      <button type="submit" class="btn btn-brand-purple rounded-pill px-3 d-md-none">
-        <i class="bi bi-search"></i>
+      <button type="button" class="f-pill d-md-none flex-shrink-0" onclick="toggleFilters()" id="filterToggleBtn">
+        <i class="bi bi-sliders2"></i>
+        Filters
+        {% if design_filter or min_rating or sort_by %}<span style="width:6px;height:6px;background:#e11d48;border-radius:50%;display:inline-block;"></span>{% endif %}
       </button>
     </div>
 
-    <!-- Filter fields — always visible on md+, collapsible on mobile -->
-    <div class="filter-fields d-flex flex-wrap gap-2 align-items-center mt-2" id="filterFields">
-      <select name="design" class="form-select form-select-sm" style="min-width:130px;max-width:180px;">
-        <option value="">All Designs</option>
+    <!-- Filter pills row -->
+    <div class="filter-pills" id="filterFields">
+
+      <!-- Design -->
+      <select name="design" class="filter-select" onchange="this.form.submit()">
+        <option value="">✂️ All Designs</option>
         {% for d in designs %}
         <option value="{{ d.name }}" {% if design_filter == d.name %}selected{% endif %}>{{ d.name }}</option>
         {% endfor %}
       </select>
 
-      <select name="min_rating" class="form-select form-select-sm" style="min-width:130px;max-width:160px;">
-        <option value="">Any Rating</option>
-        <option value="4.5" {% if min_rating == 4.5 %}selected{% endif %}>⭐ 4.5+</option>
-        <option value="4.0" {% if min_rating == 4.0 %}selected{% endif %}>⭐ 4.0+</option>
-        <option value="3.5" {% if min_rating == 3.5 %}selected{% endif %}>⭐ 3.5+</option>
-        <option value="3.0" {% if min_rating == 3.0 %}selected{% endif %}>⭐ 3.0+</option>
+      <!-- Rating -->
+      <select name="min_rating" class="filter-select" onchange="this.form.submit()">
+        <option value="">⭐ Any Rating</option>
+        <option value="4.5" {% if min_rating == 4.5 %}selected{% endif %}>4.5+</option>
+        <option value="4.0" {% if min_rating == 4.0 %}selected{% endif %}>4.0+</option>
+        <option value="3.5" {% if min_rating == 3.5 %}selected{% endif %}>3.5+</option>
       </select>
 
-      <select name="sort" class="form-select form-select-sm" style="min-width:140px;max-width:180px;">
-        <option value="" {% if not sort_by %}selected{% endif %}>Default Sort</option>
+      <!-- Sort -->
+      <select name="sort" class="filter-select" onchange="this.form.submit()">
+        <option value="" {% if not sort_by %}selected{% endif %}>↕ Sort</option>
         <option value="rating"     {% if sort_by=='rating' %}selected{% endif %}>⭐ Top Rated</option>
-        <option value="price_asc"  {% if sort_by=='price_asc' %}selected{% endif %}>Price: Low→High</option>
-        <option value="price_desc" {% if sort_by=='price_desc' %}selected{% endif %}>Price: High→Low</option>
+        <option value="price_asc"  {% if sort_by=='price_asc' %}selected{% endif %}>₹ Low to High</option>
+        <option value="price_desc" {% if sort_by=='price_desc' %}selected{% endif %}>₹ High to Low</option>
       </select>
 
-      <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" id="locateBtn" title="Near Me">
-        <i class="bi bi-geo-alt me-1"></i>Near Me
-      </button>
+      <!-- Near Me -->
       <input type="hidden" name="lat" id="latInput" value="{{ user_lat or '' }}">
       <input type="hidden" name="lng" id="lngInput" value="{{ user_lng or '' }}">
-
-      <button type="submit" class="btn btn-brand-purple btn-sm rounded-pill px-4 d-none d-md-inline-flex">
-        <i class="bi bi-search me-1"></i>Search
+      <button type="button" class="f-pill {% if user_lat %}on{% endif %}" id="locateBtn">
+        <i class="bi bi-geo-alt-fill"></i>Near Me
       </button>
 
+      <!-- Clear -->
       {% if design_filter or search or user_lat or min_rating or sort_by %}
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-danger btn-sm rounded-pill">
-        <i class="bi bi-x me-1"></i>Clear
+      <a href="{{ url_for('customer.tailors') }}" class="f-pill" style="border-color:#fecdd3;color:#e11d48;">
+        <i class="bi bi-x"></i>Clear
       </a>
       {% endif %}
     </div>
   </form>
 </div>
 
+<!-- ── Main content ── -->
 <div class="container-fluid px-3 px-md-4 py-4">
-  <div class="row g-3 g-md-4">
 
-    <!-- Map -->
-    <div class="col-12">
-      <div id="map"></div>
+  <!-- Results bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="results-header">
+      <strong style="color:#0f172a;">{{ tailors|length }}</strong>
+      tailor{{ 's' if tailors|length != 1 }} found
+      {% if design_filter %}<span class="ms-1">for <strong style="color:#0f172a;">{{ design_filter }}</strong></span>{% endif %}
+      {% if user_lat %}<span class="ms-2"><i class="bi bi-geo-alt-fill text-danger"></i> Sorted by distance</span>{% endif %}
     </div>
+    {% if tailors %}
+    <div class="text-muted" style="font-size:.75rem;">Showing {{ tailors|length }} result{{ 's' if tailors|length != 1 }}</div>
+    {% endif %}
+  </div>
 
-    <!-- Results header -->
-    <div class="col-12">
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h5 class="fw-bold mb-0">
-          {{ tailors|length }} tailor{{ 's' if tailors|length != 1 }} found
-          {% if design_filter %}<span class="text-muted fw-normal small">for {{ design_filter }}</span>{% endif %}
-        </h5>
-        {% if user_lat %}
-        <span class="text-muted small"><i class="bi bi-geo-alt-fill text-brand-orange me-1"></i>Sorted by distance</span>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Tailor Cards -->
+  <!-- Grid -->
+  {% if tailors %}
+  <div class="row g-3">
     {% for t in tailors %}
     <div class="col-12 col-sm-6 col-xl-4">
-      <div class="card border-0 shadow-sm tailor-card h-100">
-        <div class="card-body p-3 p-md-4">
+      <div class="tailor-card">
+        <div class="tc-banner"></div>
+        <div class="p-3 p-md-4">
           <div class="d-flex align-items-start gap-3 mb-3">
-            <div class="rounded-circle bg-brand-purple bg-opacity-10 d-flex align-items-center justify-content-center text-brand-purple fw-bold flex-shrink-0"
-                 style="width:50px;height:50px;font-size:1.3rem;">
-              {{ t.shop_name[0] }}
-            </div>
+            <div class="tc-avatar">{{ t.shop_name[0].upper() }}</div>
             <div class="flex-grow-1 min-w-0">
-              <div class="fw-bold text-truncate">{{ t.shop_name }}</div>
-              <div class="text-muted small text-truncate">
+              <div class="d-flex justify-content-between align-items-start gap-1">
+                <div class="tc-name text-truncate">{{ t.shop_name }}</div>
+                <span class="flex-shrink-0 ms-1 px-2 py-1 rounded-pill"
+                      style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+                             background:{% if t.is_available %}#dcfce7;color:#166534{% else %}#fee2e2;color:#991b1b{% endif %};">
+                  {% if t.is_available %}Open{% else %}Closed{% endif %}
+                </span>
+              </div>
+              <div class="tc-addr mt-1 text-truncate">
                 <i class="bi bi-geo-alt me-1"></i>{{ t.address[:45] }}{% if t.address|length > 45 %}…{% endif %}
               </div>
               {% if t.distance is defined and t.distance is not none %}
-              <div class="text-brand-orange small fw-semibold">
-                <i class="bi bi-signpost me-1"></i>{{ t.distance }} km away
-              </div>
+              <div class="tc-dist mt-1"><i class="bi bi-signpost me-1"></i>{{ t.distance }} km away</div>
               {% endif %}
             </div>
           </div>
 
-          <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-            <div class="d-flex align-items-center gap-1">
-              {% for i in range(5) %}
-              <i class="bi bi-star{% if i < t.rating|int %}-fill text-warning{% elif i < t.rating %}-half text-warning{% endif %}"
-                 style="font-size:.8rem;"></i>
-              {% endfor %}
-              <span class="small text-muted ms-1">
-                {% if t.rating_count > 0 %}{{ '%.1f'|format(t.rating) }} ({{ t.rating_count }}){% else %}No reviews{% endif %}
-              </span>
-            </div>
-            <span class="badge {% if t.is_available %}bg-success{% else %}bg-danger{% endif %} ms-auto">
-              {% if t.is_available %}Open{% else %}Closed{% endif %}
+          <!-- Rating row -->
+          <div class="d-flex align-items-center gap-2 mb-2">
+            {% if t.rating_count > 0 %}
+            <span class="tc-rating {% if t.rating < 3.5 %}low{% elif t.rating < 4.0 %}mid{% endif %}">
+              <i class="bi bi-star-fill" style="font-size:.6rem;"></i>{{ '%.1f'|format(t.rating) }}
             </span>
+            <span class="tc-meta">{{ t.rating_count }} review{{ 's' if t.rating_count != 1 }}</span>
+            {% else %}
+            <span class="tc-meta">No reviews yet</span>
+            {% endif %}
+            <span class="tc-meta ms-auto"><i class="bi bi-briefcase me-1"></i>{{ t.experience_years }} yrs exp</span>
           </div>
 
           {% if t.bio %}
-          <p class="text-muted small mb-2"
-             style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-            {{ t.bio }}
-          </p>
+          <p class="tc-bio mb-2">{{ t.bio }}</p>
           {% endif %}
 
-          <div class="mb-3">
+          <div class="d-flex flex-wrap gap-1 mb-3">
             {% for spec in t.get_specializations() %}
-            <span class="badge bg-light text-dark border me-1 mb-1">{{ spec }}</span>
+            <span class="tc-spec-tag">{{ spec }}</span>
             {% endfor %}
           </div>
 
+          <!-- CTA row -->
           <div class="d-flex gap-2">
             <a href="{{ url_for('customer.tailor_detail', tailor_id=t.id, design_id=selected_design.id if selected_design else None) }}"
-               class="btn btn-brand-purple btn-sm flex-fill rounded-pill">View Profile</a>
+               class="btn btn-brand-purple flex-fill" style="font-size:.8125rem;padding:.45rem .75rem;">
+              <i class="bi bi-person-lines-fill me-1"></i>Profile
+            </a>
             {% if current_user.is_authenticated and current_user.role == 'customer' %}
             <a href="{{ url_for('customer.place_order', tailor_id=t.id, design_id=selected_design.id if selected_design else None) }}"
-               class="btn btn-brand-orange btn-sm flex-fill rounded-pill">Order</a>
+               class="btn btn-brand-orange flex-fill" style="font-size:.8125rem;padding:.45rem .75rem;">
+              <i class="bi bi-scissors me-1"></i>Order
+            </a>
             {% endif %}
           </div>
         </div>
       </div>
     </div>
-    {% else %}
-    <div class="col-12 text-center py-5">
-      <i class="bi bi-search display-3 text-muted opacity-25"></i>
-      <h5 class="mt-3 text-muted">No tailors found</h5>
-      <p class="text-muted small">Try adjusting your filters or search term.</p>
-      <a href="{{ url_for('customer.tailors') }}" class="btn btn-outline-secondary rounded-pill px-4">Clear Filters</a>
-    </div>
     {% endfor %}
-
   </div>
+
+  {% else %}
+  <div class="empty-state">
+    <span class="empty-state-icon">🔍</span>
+    <h5 class="fw-bold mb-2" style="color:#0f172a;">No tailors found</h5>
+    <p class="text-muted small mb-4">Try adjusting your filters or search term</p>
+    <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-orange px-5">Clear All Filters</a>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Map
-const map = L.map('map').setView([20.5937, 78.9629], 5);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap'
-}).addTo(map);
-
-const tailorData = [
-  {% for t in tailors %}{% if t.latitude and t.longitude and t.latitude != 0 %}
-  { id: {{ t.id }}, name: {{ t.shop_name|tojson }}, address: {{ t.address|tojson }}, lat: {{ t.latitude }}, lng: {{ t.longitude }}, rating: {{ t.rating }} },
-  {% endif %}{% endfor %}
-];
-const bounds = [];
-tailorData.forEach(t => {
-  const m = L.marker([t.lat, t.lng]).addTo(map);
-  m.bindPopup(`<strong>${t.name}</strong><br>${t.address}<br>⭐ ${t.rating.toFixed(1)}<br><a href="/tailors/${t.id}">View</a>`);
-  bounds.push([t.lat, t.lng]);
-});
-if (bounds.length > 0) map.fitBounds(bounds, { padding: [30, 30] });
-
-{% if user_lat and user_lng %}
-L.circleMarker([{{ user_lat }}, {{ user_lng }}], { radius: 9, color: '#ea580c', fillColor: '#ea580c', fillOpacity: 0.5 })
-  .addTo(map).bindPopup('Your Location');
-map.setView([{{ user_lat }}, {{ user_lng }}], 12);
-{% endif %}
-
-// Location button
 document.getElementById('locateBtn').addEventListener('click', function() {
   this.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Locating…';
   this.disabled = true;
-  navigator.geolocation.getCurrentPosition(pos => {
+  navigator.geolocation.getCurrentPosition(function(pos) {
     document.getElementById('latInput').value = pos.coords.latitude;
     document.getElementById('lngInput').value = pos.coords.longitude;
     document.getElementById('filterForm').submit();
-  }, () => {
+  }, function() {
     alert('Could not get your location. Please allow location access.');
-    this.innerHTML = '<i class="bi bi-geo-alt me-1"></i>Near Me';
-    this.disabled = false;
+    var btn = document.getElementById('locateBtn');
+    btn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Near Me';
+    btn.disabled = false;
   });
 });
 
-// Mobile filter collapse
 function toggleFilters() {
-  const el = document.getElementById('filterFields');
-  el.classList.toggle('show');
-  const btn = document.getElementById('filterToggleBtn');
-  const open = el.classList.contains('show');
-  btn.innerHTML = open
-    ? '<i class="bi bi-x me-1"></i>Close'
-    : '<i class="bi bi-sliders me-1"></i>Filters{% if design_filter or min_rating or sort_by %}<span class="badge bg-brand-purple ms-1" style="font-size:.6rem;">ON</span>{% endif %}';
+  var el = document.getElementById('filterFields');
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+// On mobile, hide extra filters initially
+if (window.innerWidth < 768) {
+  var ff = document.getElementById('filterFields');
+  if (ff) ff.style.display = 'none';
 }
 </script>
 {% endblock %}

@@ -1,104 +1,210 @@
 {% extends "base.html" %}
-{% block title %}Register{% endblock %}
+{% block title %}Create Account{% endblock %}
+{% block extra_head %}
+<style>
+body { background:#f8fafc; }
+.auth-wrap {
+  min-height:calc(100vh - 64px);
+  display:flex; align-items:stretch;
+}
+.auth-brand {
+  flex:0 0 380px;
+  background:linear-gradient(145deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);
+  display:flex; flex-direction:column; justify-content:center;
+  padding:3rem 2.5rem; position:relative; overflow:hidden;
+}
+.auth-brand::before {
+  content:''; position:absolute; top:-80px; right:-60px;
+  width:280px; height:280px; border-radius:50%;
+  background:radial-gradient(circle,rgba(225,29,72,.18),transparent 70%);
+}
+.auth-brand::after {
+  content:''; position:absolute; bottom:-60px; left:-40px;
+  width:220px; height:220px; border-radius:50%;
+  background:radial-gradient(circle,rgba(249,115,22,.12),transparent 70%);
+}
+.auth-brand-logo { font-size:1.5rem; font-weight:800; color:#fff; margin-bottom:2.5rem; z-index:1; }
+.auth-brand-logo span { color:#e11d48; }
+.auth-brand-headline { font-size:1.625rem; font-weight:800; color:#fff; line-height:1.3; margin-bottom:.875rem; z-index:1; }
+.auth-brand-sub { font-size:.8125rem; color:rgba(255,255,255,.5); line-height:1.6; margin-bottom:2rem; z-index:1; }
+.auth-brand-step { display:flex; align-items:flex-start; gap:.75rem; margin-bottom:1rem; z-index:1; }
+.auth-brand-step-num { width:24px; height:24px; border-radius:50%; background:#e11d48; color:#fff; font-size:.72rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.auth-brand-step-text { font-size:.8rem; color:rgba(255,255,255,.65); line-height:1.45; }
+.auth-form-side {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:2rem 1.5rem; background:#f8fafc; overflow-y:auto;
+}
+.auth-card {
+  background:#fff; border:1.5px solid #e2e8f0; border-radius:20px;
+  padding:2rem 2rem 2.5rem; width:100%; max-width:500px;
+  box-shadow:0 4px 24px rgba(15,23,42,.07);
+}
+.auth-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#64748b; display:block; margin-bottom:.4rem; }
+.auth-input {
+  width:100%; border:1.5px solid #e2e8f0; border-radius:10px;
+  padding:.65rem 1rem; font-size:.875rem; color:#0f172a;
+  outline:none; transition:border-color .15s, box-shadow .15s;
+  font-family:inherit; background:#fff;
+}
+.auth-input:focus { border-color:#e11d48; box-shadow:0 0 0 3px rgba(225,29,72,.1); }
+.auth-input::placeholder { color:#cbd5e1; }
+
+/* Role cards */
+.role-card {
+  flex:1; border:1.5px solid #e2e8f0; border-radius:12px; padding:.875rem;
+  cursor:pointer; transition:all .15s; min-width:100px; position:relative;
+  background:#fff;
+}
+.role-card:hover { border-color:#fecdd3; background:#fff8f9; }
+.role-card.selected { border-color:#e11d48; background:#fff1f2; }
+.role-card input[type=radio] { position:absolute; opacity:0; width:0; height:0; }
+.role-card-icon { font-size:1.4rem; margin-bottom:.3rem; display:block; }
+.role-card-name { font-size:.8125rem; font-weight:700; color:#0f172a; display:block; }
+.role-card-desc { font-size:.7rem; color:#94a3b8; display:block; margin-top:.1rem; }
+.role-card.selected .role-card-name { color:#e11d48; }
+
+.auth-submit {
+  width:100%; background:linear-gradient(135deg,#e11d48,#f43f5e);
+  color:#fff; border:none; border-radius:12px; padding:.8rem;
+  font-size:.9375rem; font-weight:700; cursor:pointer; transition:all .2s;
+  box-shadow:0 4px 14px rgba(225,29,72,.28); letter-spacing:.01em;
+}
+.auth-submit:hover { background:linear-gradient(135deg,#be123c,#e11d48); transform:translateY(-1px); box-shadow:0 6px 18px rgba(225,29,72,.32); }
+
+.approval-notice { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:.65rem .875rem; font-size:.78rem; color:#1d4ed8; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center py-4 px-3 auth-bg" style="background: linear-gradient(135deg, var(--brand-purple-dark) 0%, var(--brand-purple) 60%, #9333ea 100%);">
-  <div class="card auth-card" style="max-width:520px;">
-    <div class="card-body p-4 p-md-5">
+
+<div class="auth-wrap">
+
+  <!-- Brand side (desktop only) -->
+  <div class="auth-brand d-none d-lg-flex flex-column">
+    <div class="auth-brand-logo"><i class="bi bi-scissors me-2"></i>Tailor<span>App</span></div>
+    <h2 class="auth-brand-headline">Join thousands of<br>happy customers.</h2>
+    <p class="auth-brand-sub">Get started in minutes and connect with the best tailors in your city.</p>
+    <div class="auth-brand-step">
+      <div class="auth-brand-step-num">1</div>
+      <div class="auth-brand-step-text">Create your free account and set up your profile</div>
+    </div>
+    <div class="auth-brand-step">
+      <div class="auth-brand-step-num">2</div>
+      <div class="auth-brand-step-text">Browse tailors, explore designs and add to cart</div>
+    </div>
+    <div class="auth-brand-step">
+      <div class="auth-brand-step-num">3</div>
+      <div class="auth-brand-step-text">We pick up your fabric and deliver finished clothes</div>
+    </div>
+  </div>
+
+  <!-- Form side -->
+  <div class="auth-form-side">
+    <div class="auth-card">
       <div class="text-center mb-4">
-        <span style="font-size:2.5rem;">✂️</span>
-        <h3 class="fw-bold mt-2 mb-0">Create Account</h3>
-        <p class="text-muted small">Join TailorApp today</p>
+        <div style="font-size:2rem;margin-bottom:.5rem;">🧵</div>
+        <h4 class="fw-bold mb-1" style="color:#0f172a;">Create Account</h4>
+        <p class="text-muted mb-0" style="font-size:.8125rem;">Join TailorApp — it's free</p>
       </div>
+
       <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Role selection -->
         <div class="mb-3">
-          <label class="form-label fw-semibold">I am a</label>
-          <div class="d-flex gap-2 flex-wrap">
-            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
-              <input class="form-check-input" type="radio" name="role" value="customer" id="roleC" checked>
-              <label class="form-check-label w-100" for="roleC" style="cursor:pointer;">
-                <i class="bi bi-person me-1"></i><strong>Customer</strong>
-                <div class="text-muted small">I want clothes stitched</div>
-              </label>
-            </div>
-            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
-              <input class="form-check-input" type="radio" name="role" value="tailor" id="roleT">
-              <label class="form-check-label w-100" for="roleT" style="cursor:pointer;">
-                <i class="bi bi-scissors me-1"></i><strong>Tailor</strong>
-                <div class="text-muted small">I provide stitching</div>
-              </label>
-            </div>
-            <div class="form-check flex-fill border rounded-3 p-3" style="cursor:pointer;min-width:120px;">
-              <input class="form-check-input" type="radio" name="role" value="delivery" id="roleD">
-              <label class="form-check-label w-100" for="roleD" style="cursor:pointer;">
-                <i class="bi bi-bicycle me-1"></i><strong>Delivery</strong>
-                <div class="text-muted small">I deliver orders</div>
-              </label>
-            </div>
+          <label class="auth-label">I am a</label>
+          <div class="d-flex gap-2">
+            <label class="role-card selected" id="cardC">
+              <input type="radio" name="role" value="customer" checked>
+              <span class="role-card-icon">👤</span>
+              <span class="role-card-name">Customer</span>
+              <span class="role-card-desc">I want clothes stitched</span>
+            </label>
+            <label class="role-card" id="cardT">
+              <input type="radio" name="role" value="tailor">
+              <span class="role-card-icon">✂️</span>
+              <span class="role-card-name">Tailor</span>
+              <span class="role-card-desc">I provide stitching</span>
+            </label>
+            <label class="role-card" id="cardD">
+              <input type="radio" name="role" value="delivery">
+              <span class="role-card-icon">🚴</span>
+              <span class="role-card-name">Delivery</span>
+              <span class="role-card-desc">I deliver orders</span>
+            </label>
           </div>
-          <!-- Shown for tailor/delivery: approval notice -->
-          <div id="approvalNotice" class="alert alert-info small mt-2 mb-0 d-none py-2">
-            <i class="bi bi-info-circle me-1"></i>Tailor and delivery accounts require admin approval before you can log in.
+          <div id="approvalNotice" class="approval-notice mt-2 d-none">
+            <i class="bi bi-info-circle me-1"></i>Tailor and delivery accounts require admin approval before login.
           </div>
         </div>
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label fw-semibold">Full Name</label>
-            <input type="text" name="name" class="form-control" placeholder="Your full name" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Email</label>
-            <input type="email" name="email" class="form-control" placeholder="you@example.com" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Phone</label>
-            <input type="tel" name="phone" class="form-control" placeholder="10-digit number" required>
-          </div>
 
-          <div id="tailorFields" class="col-12 d-none">
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">Shop Name</label>
-                <input type="text" name="shop_name" class="form-control" placeholder="Your tailor shop name">
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-semibold">Shop Address</label>
-                <input type="text" name="address" class="form-control" placeholder="Full shop address">
-              </div>
-            </div>
-          </div>
+        <!-- Name -->
+        <div class="mb-3">
+          <label class="auth-label">Full Name</label>
+          <input type="text" name="name" class="auth-input" placeholder="Your full name" required>
+        </div>
 
+        <!-- Email + Phone -->
+        <div class="row g-2 mb-3">
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Password</label>
-            <input type="password" name="password" class="form-control" placeholder="Min 6 characters" required minlength="6">
+            <label class="auth-label">Email</label>
+            <input type="email" name="email" class="auth-input" placeholder="you@example.com" required>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Confirm Password</label>
-            <input type="password" name="confirm_password" class="form-control" placeholder="Repeat password" required>
+            <label class="auth-label">Phone</label>
+            <input type="tel" name="phone" class="auth-input" placeholder="10-digit number" required>
           </div>
         </div>
-        <button type="submit" class="btn btn-brand-purple w-100 py-2 fw-semibold mt-4 rounded-pill shadow-sm">
+
+        <!-- Tailor-only fields -->
+        <div id="tailorFields" class="mb-3 d-none">
+          <label class="auth-label">Shop Name</label>
+          <input type="text" name="shop_name" class="auth-input mb-2" placeholder="Your tailor shop name">
+          <label class="auth-label">Shop Address</label>
+          <input type="text" name="address" class="auth-input" placeholder="Full shop address">
+        </div>
+
+        <!-- Password -->
+        <div class="row g-2 mb-4">
+          <div class="col-md-6">
+            <label class="auth-label">Password</label>
+            <input type="password" name="password" class="auth-input" placeholder="Min 6 characters" required minlength="6">
+          </div>
+          <div class="col-md-6">
+            <label class="auth-label">Confirm Password</label>
+            <input type="password" name="confirm_password" class="auth-input" placeholder="Repeat password" required>
+          </div>
+        </div>
+
+        <button type="submit" class="auth-submit mb-3">
           <i class="bi bi-person-plus me-2"></i>Create Account
         </button>
       </form>
-      <hr class="my-4">
-      <p class="text-center text-muted small mb-0">
+
+      <p class="text-center text-muted mb-0" style="font-size:.8125rem;">
         Already have an account?
-        <a href="{{ url_for('auth.login') }}" class="text-decoration-none fw-semibold" style="color:var(--brand-orange);">Sign in</a>
+        <a href="{{ url_for('auth.login') }}" style="font-weight:700;color:#e11d48;text-decoration:none;">Sign in</a>
       </p>
     </div>
   </div>
+
 </div>
 {% endblock %}
 {% block extra_scripts %}
 <script>
-  const tailorFields = document.getElementById('tailorFields');
-  const approvalNotice = document.getElementById('approvalNotice');
-  document.querySelectorAll('input[name="role"]').forEach(r => {
-    r.addEventListener('change', () => {
-      tailorFields.classList.toggle('d-none', r.value !== 'tailor');
-      approvalNotice.classList.toggle('d-none', !['tailor','delivery'].includes(r.value));
-    });
+var cards = { customer:'cardC', tailor:'cardT', delivery:'cardD' };
+document.querySelectorAll('input[name="role"]').forEach(function(r) {
+  r.addEventListener('change', function() {
+    Object.values(cards).forEach(function(id) { document.getElementById(id).classList.remove('selected'); });
+    document.getElementById(cards[r.value]).classList.add('selected');
+    document.getElementById('tailorFields').classList.toggle('d-none', r.value !== 'tailor');
+    document.getElementById('approvalNotice').classList.toggle('d-none', !['tailor','delivery'].includes(r.value));
   });
+});
+document.querySelectorAll('.role-card').forEach(function(card) {
+  card.addEventListener('click', function() {
+    var radio = card.querySelector('input[type=radio]');
+    if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change')); }
+  });
+});
 </script>
 {% endblock %}

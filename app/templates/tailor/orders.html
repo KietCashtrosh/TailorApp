@@ -25,7 +25,7 @@
         <tr>
           <td><code class="small">{{ o.order_number }}</code></td>
           <td>{{ o.customer.name }}<br><span class="text-muted small">{{ o.customer.phone }}</span></td>
-          <td>{{ o.design.name }}</td>
+          <td>{{ o.display_design_name() }}</td>
           <td>₹{{ o.final_price or o.estimated_price or '—' }}</td>
           <td class="text-muted">{{ o.estimated_days or '—' }} days</td>
           <td><span class="badge bg-{{ o.status_badge() }}">{{ o.status_label() }}</span></td>

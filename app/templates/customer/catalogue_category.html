@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <!-- Breadcrumb -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{{ url_for('customer.catalogue') }}">Catalogue</a></li>
+      <li class="breadcrumb-item active">{{ category.name }}</li>
+    </ol>
+  </nav>
+
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h3 class="fw-bold mb-0">
+        <i class="bi {{ category.icon }} me-2 text-brand-purple"></i>{{ category.name }}
+      </h3>
+      <p class="text-muted small mb-0">{{ category.description or '' }} · From ₹{{ category.base_price|int }}</p>
+    </div>
+    <a href="{{ url_for('customer.book_appointment') }}" class="btn btn-outline-brand-purple btn-sm">
+      <i class="bi bi-calendar-plus me-1"></i>Book Style Agent
+    </a>
+  </div>
+
+  {% if sub_designs %}
+  <div class="row g-4">
+    {% for pd in sub_designs %}
+    <div class="col-sm-6 col-lg-4">
+      <a href="{{ url_for('customer.catalogue_design', design_id=pd.id) }}"
+         class="card border-0 shadow-sm text-decoration-none h-100 sub-design-card">
+        <!-- Image -->
+        {% set img = pd.main_image() %}
+        {% if img %}
+        <div style="height:200px;overflow:hidden;">
+          <img src="{{ img.url() }}" class="card-img-top" style="height:200px;object-fit:cover;" alt="{{ pd.name }}">
+        </div>
+        {% else %}
+        <div class="d-flex align-items-center justify-content-center bg-light" style="height:200px;">
+          <i class="bi bi-image fs-1 text-muted opacity-50"></i>
+        </div>
+        {% endif %}
+
+        <div class="card-body">
+          <h6 class="fw-bold text-dark mb-1">{{ pd.name }}</h6>
+          {% if pd.description %}
+          <p class="text-muted small mb-2 text-truncate-2">{{ pd.description }}</p>
+          {% endif %}
+
+          <!-- Fabric suggestions -->
+          {% set fabrics = pd.get_fabric_suggestions() %}
+          {% if fabrics %}
+          <div class="mb-2">
+            {% for f in fabrics[:3] %}
+            <span class="badge bg-light text-muted border me-1" style="font-size:.7rem;">{{ f }}</span>
+            {% endfor %}
+            {% if fabrics|length > 3 %}
+            <span class="badge bg-light text-muted border" style="font-size:.7rem;">+{{ fabrics|length - 3 }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <div>
+              <span class="fw-bold text-brand-purple fs-6">₹{{ pd.effective_base_price()|int }}</span>
+              {% if pd.base_price_modifier > 0 %}
+              <span class="text-muted small ms-1 text-decoration-line-through">₹{{ category.base_price|int }}</span>
+              {% endif %}
+            </div>
+            <div class="d-flex gap-1">
+              {% if pd.variants.count() %}
+              <span class="badge bg-info text-dark" style="font-size:.7rem;">
+                {{ pd.variants.count() }} option{{ 's' if pd.variants.count() != 1 else '' }}
+              </span>
+              {% endif %}
+              {% set avail = pd.tailor_services.filter_by(is_available=True).count() %}
+              {% if avail %}
+              <span class="badge bg-success" style="font-size:.7rem;">{{ avail }} tailor{{ 's' if avail != 1 else '' }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer bg-white border-top-0 pt-0 pb-3 px-3">
+          <div class="btn btn-brand-purple btn-sm w-100">
+            View Design <i class="bi bi-arrow-right ms-1"></i>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-hourglass fs-1 opacity-25 d-block mb-3"></i>
+    <p>No designs available yet for <strong>{{ category.name }}</strong>.</p>
+    <a href="{{ url_for('customer.catalogue') }}" class="btn btn-outline-secondary btn-sm">
+      Browse Other Categories
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.sub-design-card { transition: transform .15s, box-shadow .15s; }
+.sub-design-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(111,66,193,.15) !important; }
+.text-truncate-2 { display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+.btn-outline-brand-purple { border-color:#6f42c1;color:#6f42c1; }
+.btn-outline-brand-purple:hover { background:#6f42c1;color:#fff; }
+</style>
+{% endblock %}

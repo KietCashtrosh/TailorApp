@@ -5,7 +5,9 @@ from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app.blueprints.delivery import delivery_bp
 from app.extensions import db
-from app.models import DeliveryAssignment, Order, CustomerMeasurement, TailorMeasurementTemplate, generate_otp
+from app.models import (DeliveryAssignment, Order, CustomerMeasurement,
+                        TailorMeasurementTemplate, generate_otp,
+                        StyleAgentAppointment, Notification)
 
 
 def delivery_required(f):
@@ -181,3 +183,90 @@ def save_measurements(assignment_id):
     db.session.commit()
     flash('Measurements saved and synced to customer profile.', 'success')
     return redirect(url_for('delivery.assignment_detail', assignment_id=assignment_id))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — STYLE AGENT APPOINTMENTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@delivery_bp.route('/my-appointments')
+@login_required
+@delivery_required
+def my_appointments():
+    status_filter = request.args.get('status', '')
+    q = (StyleAgentAppointment.query
+         .filter_by(style_agent_id=current_user.id)
+         .order_by(StyleAgentAppointment.appointment_date.asc(),
+                   StyleAgentAppointment.appointment_time.asc()))
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+    appts = q.all()
+    return render_template('delivery/my_appointments.html',
+                           appointments=appts, status_filter=status_filter)
+
+
+@delivery_bp.route('/my-appointments/<int:appt_id>')
+@login_required
+@delivery_required
+def appointment_detail(appt_id):
+    appt = StyleAgentAppointment.query.filter_by(
+        id=appt_id, style_agent_id=current_user.id
+    ).first_or_404()
+    return render_template('delivery/appointment_detail.html', appt=appt)
+
+
+@delivery_bp.route('/my-appointments/<int:appt_id>/arrived', methods=['POST'])
+@login_required
+@delivery_required
+def appointment_arrived(appt_id):
+    appt = StyleAgentAppointment.query.filter_by(
+        id=appt_id, style_agent_id=current_user.id
+    ).first_or_404()
+    appt.status = 'arrived'
+    db.session.commit()
+    flash('Marked as arrived. Proceed with the visit.', 'success')
+    return redirect(url_for('delivery.appointment_detail', appt_id=appt_id))
+
+
+@delivery_bp.route('/my-appointments/<int:appt_id>/complete', methods=['POST'])
+@login_required
+@delivery_required
+def appointment_complete(appt_id):
+    appt = StyleAgentAppointment.query.filter_by(
+        id=appt_id, style_agent_id=current_user.id
+    ).first_or_404()
+    appt.status = 'completed'
+    appt.completed_at = datetime.utcnow()
+    appt.agent_notes = request.form.get('agent_notes', '').strip()
+
+    # Notify customer
+    Notification.create(
+        user_id=appt.customer_id,
+        title='Style Agent Visit Completed',
+        body=f'Your Style Agent visit on {appt.display_datetime()} is complete. Your order will be processed shortly.',
+        type='success',
+    )
+    db.session.commit()
+
+    try:
+        from app.services import email_service
+        email_service.send_appointment_completed(appt)
+    except Exception:
+        pass
+
+    flash('Appointment marked as completed.', 'success')
+    return redirect(url_for('delivery.my_appointments'))
+
+
+@delivery_bp.route('/my-appointments/<int:appt_id>/reschedule', methods=['POST'])
+@login_required
+@delivery_required
+def appointment_reschedule(appt_id):
+    appt = StyleAgentAppointment.query.filter_by(
+        id=appt_id, style_agent_id=current_user.id
+    ).first_or_404()
+    appt.status = 'rescheduled'
+    appt.agent_notes = request.form.get('agent_notes', '').strip()
+    db.session.commit()
+    flash('Appointment marked for rescheduling. Admin will follow up with customer.', 'info')
+    return redirect(url_for('delivery.my_appointments'))

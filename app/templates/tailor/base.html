@@ -49,6 +49,10 @@
              class="nav-link {% if 'measurement_template' in request.endpoint %}active{% endif %}">
         <i class="bi bi-rulers"></i>Measurements
       </a></li>
+      <li><a href="{{ url_for('tailor.earnings') }}"
+             class="nav-link {% if request.endpoint=='tailor.earnings' %}active{% endif %}">
+        <i class="bi bi-currency-rupee"></i>Earnings
+      </a></li>
       <li><a href="{{ url_for('tailor.profile') }}"
              class="nav-link {% if request.endpoint=='tailor.profile' %}active{% endif %}">
         <i class="bi bi-person-gear"></i>My Profile

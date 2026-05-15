@@ -1,0 +1,118 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-brand-purple"></i>Style Agent Appointments</h4>
+    <p class="text-muted small mb-0">All customer booking requests for measurement &amp; fabric pickup</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% for val, label in [('','All'),('pending','Pending'),('confirmed','Confirmed'),('agent_assigned','Assigned'),('completed','Completed'),('cancelled','Cancelled')] %}
+    <a href="{{ url_for('admin.appointments', status=val) }}"
+       class="btn btn-sm {% if status_filter == val %}btn-brand-purple{% else %}btn-outline-secondary{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if appointments %}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Date &amp; Time</th>
+          <th>Service</th>
+          <th>Style Agent</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for appt in appointments %}
+        <tr>
+          <td class="text-muted small">{{ appt.id }}</td>
+          <td>
+            <div class="fw-semibold">{{ appt.customer.name }}</div>
+            <div class="text-muted small">{{ appt.customer.phone }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ appt.display_datetime() }}</div>
+            <div class="text-muted small text-truncate" style="max-width:180px;">{{ appt.customer_address }}</div>
+          </td>
+          <td>
+            <span class="badge bg-info text-dark">{{ appt.service_label() }}</span>
+          </td>
+          <td>
+            {% if appt.style_agent %}
+              <span class="fw-semibold small">{{ appt.style_agent.name }}</span>
+            {% else %}
+              <span class="text-muted small fst-italic">Unassigned</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge bg-{{ appt.status_badge() }}">{{ appt.status_label() }}</span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              {% if appt.status == 'pending' %}
+              <form method="POST" action="{{ url_for('admin.appointment_confirm', appt_id=appt.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-success" title="Confirm">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              {% endif %}
+              {% if appt.status in ['pending','confirmed'] and not appt.style_agent_id %}
+              <div class="d-flex gap-1">
+                <select id="agent_sel_{{ appt.id }}" class="form-select form-select-sm" style="min-width:130px;">
+                  <option value="">Agent…</option>
+                  {% for a in agents %}
+                  <option value="{{ a.id }}">{{ a.name }}</option>
+                  {% endfor %}
+                </select>
+                <form method="POST" action="{{ url_for('admin.appointment_assign', appt_id=appt.id) }}" class="d-inline" id="assign_form_{{ appt.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="agent_id" id="agent_hidden_{{ appt.id }}">
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          onclick="submitAssign({{ appt.id }})">Assign</button>
+                </form>
+              </div>
+              {% endif %}
+              {% if appt.status not in ['cancelled','completed'] %}
+              <form method="POST" action="{{ url_for('admin.appointment_cancel', appt_id=appt.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Cancel this appointment?')" title="Cancel">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-calendar-x fs-1 opacity-25 d-block mb-3"></i>
+  No appointments found{% if status_filter %} with status "{{ status_filter }}"{% endif %}.
+</div>
+{% endif %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+function submitAssign(id) {
+  const sel = document.getElementById('agent_sel_' + id);
+  if (!sel.value) { alert('Please select an agent.'); return; }
+  document.getElementById('agent_hidden_' + id).value = sel.value;
+  document.getElementById('assign_form_' + id).submit();
+}
+</script>
+{% endblock %}
+{% endblock %}

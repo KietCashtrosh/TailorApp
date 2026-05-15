@@ -85,17 +85,28 @@
       <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2"></i>Order Items</div>
       <div class="card-body p-0">
         {% for item in order.order_items.all() %}
-        <div class="d-flex align-items-center gap-3 p-3 {% if not loop.last %}border-bottom{% endif %}">
-          <span style="font-size:1.5rem;">
-            {% if item.design.name == 'Blouse' %}🪡{% elif item.design.name == 'Lehenga' %}👗{% elif item.design.name == 'Shirt' %}👔{% elif item.design.name == 'Trouser' %}👖{% else %}✂️{% endif %}
-          </span>
-          <div class="flex-grow-1">
-            <div class="fw-semibold">{{ item.design.name }}</div>
-            {% if item.fabric_description %}<div class="text-muted small">{{ item.fabric_description }}</div>{% endif %}
-          </div>
-          <div class="text-end">
-            <div class="fw-semibold text-brand-orange">₹{{ item.unit_price|int }}</div>
-            {% if item.quantity > 1 %}<div class="text-muted small">× {{ item.quantity }}</div>{% endif %}
+        {% set ivars = item.get_selected_variants() %}
+        <div class="p-3 {% if not loop.last %}border-bottom{% endif %}">
+          <div class="d-flex align-items-start gap-3">
+            <span style="font-size:1.5rem;">
+              {% if item.design.name == 'Blouse' %}🪡{% elif item.design.name == 'Saree Blouse' %}🧵{% elif item.design.name == 'Lehenga' %}👗{% elif item.design.name == 'Shirt' %}👔{% elif item.design.name == 'Trouser' %}👖{% elif item.design.name == 'Salwar Suit' %}🥻{% elif item.design.name == 'Kurti' %}🎨{% elif item.design.name == 'Skirt' %}👘{% elif item.design.name == 'Dress/Frock' %}🌸{% elif item.design.name == 'Jacket/Blazer' %}🧥{% elif item.design.name == 'Ethnic/Indo-Western' %}✨{% else %}✂️{% endif %}
+            </span>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ item.design.name }}</div>
+              {% if ivars %}
+              <div class="d-flex flex-wrap gap-1 mt-1 mb-1">
+                {% for grp, opt in ivars.items() %}
+                <span class="badge rounded-pill bg-light text-dark" style="font-size:.65rem;border:1px solid #dee2e6;">{{ grp }}: <strong>{{ opt }}</strong></span>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if item.fabric_description %}<div class="text-muted small">{{ item.fabric_description }}</div>{% endif %}
+              {% if item.special_instructions %}<div class="text-muted small fst-italic">{{ item.special_instructions }}</div>{% endif %}
+            </div>
+            <div class="text-end flex-shrink-0">
+              <div class="fw-semibold text-brand-orange">₹{{ item.unit_price|int }}</div>
+              {% if item.quantity > 1 %}<div class="text-muted small">× {{ item.quantity }}</div>{% endif %}
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -137,19 +148,125 @@
     </div>
     {% endif %}
 
-    <!-- Measurements -->
+    <!-- Measurements (view + edit) -->
     {% if design_fields %}
     <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Measurements</div>
+      <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-rulers me-2"></i>Measurements</span>
+        {% if order.status in ['accepted', 'fabric_collected', 'stitching', 'ready'] %}
+        <button class="btn btn-sm btn-outline-secondary" type="button"
+                data-bs-toggle="collapse" data-bs-target="#editMeasurements">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </button>
+        {% endif %}
+      </div>
       <div class="card-body">
-        <div class="row g-2">
+        <!-- Read-only view -->
+        <div class="row g-2 mb-0" id="measureView">
           {% for field in design_fields %}
           <div class="col-6 col-md-4">
             <div class="text-muted small">{{ field.label }}</div>
-            <div class="fw-semibold">{{ measurements.get(field.key, '—') }}</div>
+            <div class="fw-semibold {% if not measurements.get(field.key) %}text-danger{% endif %}">
+              {{ measurements.get(field.key) or '— not set' }}
+            </div>
           </div>
           {% endfor %}
         </div>
+        <!-- Collapsible edit form -->
+        {% if order.status in ['accepted', 'fabric_collected', 'stitching', 'ready'] %}
+        <div class="collapse mt-3" id="editMeasurements">
+          <hr>
+          <div class="small fw-semibold text-muted mb-2 text-uppercase" style="letter-spacing:.05em;">
+            <i class="bi bi-pencil-square me-1"></i>Update Measurements
+          </div>
+          <form method="POST" action="{{ url_for('tailor.update_measurements', order_id=order.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-2 mb-3">
+              {% for field in design_fields %}
+              <div class="col-6 col-md-4">
+                <label class="form-label small fw-semibold mb-1">{{ field.label }}</label>
+                <div class="input-group input-group-sm">
+                  <input type="hidden" name="measurement_key" value="{{ field.key }}">
+                  <input type="text" name="measurement_value" class="form-control"
+                         value="{{ measurements.get(field.key, '') }}"
+                         placeholder="e.g. 36">
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-brand btn-sm px-4">
+              <i class="bi bi-check-lg me-1"></i>Save Measurements
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <!-- No design fields — manual measurement entry -->
+    {% if order.status in ['accepted', 'fabric_collected', 'stitching', 'ready'] %}
+    <div class="card border-0 shadow-sm mb-4 border-start border-4 border-warning">
+      <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-rulers me-2"></i>Add Measurements
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">No measurement template is configured for this design.
+          Enter measurements manually or set up a template in
+          <a href="{{ url_for('tailor.measurement_templates') }}">Measurement Templates</a>.</p>
+        <div class="alert alert-info border-0 py-2 small">
+          <i class="bi bi-info-circle me-1"></i>
+          Customer's existing measurements: {{ measurements or 'None recorded' }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Work-in-Progress Photos -->
+    {% if order.status in ['accepted', 'fabric_collected', 'stitching', 'ready', 'delivered'] %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-images me-2 text-brand-purple"></i>Work Photos
+        <span class="text-muted fw-normal small ms-2">(visible to customer as progress updates)</span>
+      </div>
+      <div class="card-body">
+        {% set work_imgs = order.get_work_images() %}
+        {% if work_imgs %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          {% for img in work_imgs %}
+          <div class="position-relative">
+            <img src="{{ url_for('static', filename='uploads/work_images/' + img) }}"
+                 alt="Work photo" class="rounded-2 border"
+                 style="width:100px;height:100px;object-fit:cover;">
+            {% if order.status != 'delivered' %}
+            <form method="POST" action="{{ url_for('tailor.delete_work_image', order_id=order.id) }}"
+                  style="position:absolute;top:3px;right:3px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="filename" value="{{ img }}">
+              <button type="submit" class="btn btn-danger btn-sm py-0 px-1" title="Remove"
+                      onclick="return confirm('Remove this image?')">
+                <i class="bi bi-x" style="font-size:.75rem;"></i>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted small mb-3">No work photos uploaded yet.</p>
+        {% endif %}
+        {% if order.status != 'delivered' %}
+        <form method="POST" action="{{ url_for('tailor.upload_work_image', order_id=order.id) }}"
+              enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="file" name="work_image" class="form-control form-control-sm"
+                 accept="image/*" style="max-width:260px;" required>
+          <button type="submit" class="btn btn-sm btn-brand-purple">
+            <i class="bi bi-upload me-1"></i>Upload Photo
+          </button>
+        </form>
+        <div class="form-text">Max 4 MB · JPG, PNG, WEBP. Use to document fabric received, WIP, finished garment.</div>
+        {% endif %}
       </div>
     </div>
     {% endif %}

@@ -1,48 +1,129 @@
 {% extends "base.html" %}
 {% block title %}Sign In{% endblock %}
+{% block extra_head %}
+<style>
+body { background:#f8fafc; }
+.auth-wrap {
+  min-height:calc(100vh - 64px);
+  display:flex; align-items:stretch;
+}
+.auth-brand {
+  flex:0 0 420px;
+  background:linear-gradient(145deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);
+  display:flex; flex-direction:column; justify-content:center;
+  padding:3rem 2.5rem; position:relative; overflow:hidden;
+}
+.auth-brand::before {
+  content:''; position:absolute; top:-100px; right:-80px;
+  width:320px; height:320px; border-radius:50%;
+  background:radial-gradient(circle,rgba(225,29,72,.18),transparent 70%);
+}
+.auth-brand::after {
+  content:''; position:absolute; bottom:-80px; left:-60px;
+  width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle,rgba(249,115,22,.12),transparent 70%);
+}
+.auth-brand-logo { font-size:1.5rem; font-weight:800; color:#fff; margin-bottom:3rem; z-index:1; }
+.auth-brand-logo span { color:#e11d48; }
+.auth-brand-headline { font-size:1.875rem; font-weight:800; color:#fff; line-height:1.25; margin-bottom:1rem; z-index:1; }
+.auth-brand-sub { font-size:.9rem; color:rgba(255,255,255,.5); line-height:1.6; z-index:1; margin-bottom:2.5rem; }
+.auth-brand-feat { display:flex; align-items:center; gap:.75rem; color:rgba(255,255,255,.7); font-size:.8125rem; z-index:1; margin-bottom:.75rem; }
+.auth-brand-feat i { color:#e11d48; font-size:1rem; }
+.auth-form-side {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:2rem 1.5rem; background:#f8fafc;
+}
+.auth-card {
+  background:#fff; border:1.5px solid #e2e8f0; border-radius:20px;
+  padding:2.5rem; width:100%; max-width:440px;
+  box-shadow:0 4px 24px rgba(15,23,42,.07);
+}
+.auth-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#64748b; display:block; margin-bottom:.4rem; }
+.auth-input {
+  width:100%; border:1.5px solid #e2e8f0; border-radius:10px;
+  padding:.65rem 1rem; font-size:.875rem; color:#0f172a;
+  outline:none; transition:border-color .15s, box-shadow .15s;
+  font-family:inherit; background:#fff;
+}
+.auth-input:focus { border-color:#e11d48; box-shadow:0 0 0 3px rgba(225,29,72,.1); }
+.auth-input::placeholder { color:#cbd5e1; }
+.auth-input-icon { position:relative; }
+.auth-input-icon .auth-input { padding-left:2.5rem; }
+.auth-input-icon i { position:absolute; left:.875rem; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:.9rem; }
+.auth-submit {
+  width:100%; background:linear-gradient(135deg,#e11d48,#f43f5e);
+  color:#fff; border:none; border-radius:12px; padding:.8rem;
+  font-size:.9375rem; font-weight:700; cursor:pointer; transition:all .2s;
+  box-shadow:0 4px 14px rgba(225,29,72,.28); letter-spacing:.01em;
+}
+.auth-submit:hover { background:linear-gradient(135deg,#be123c,#e11d48); transform:translateY(-1px); box-shadow:0 6px 18px rgba(225,29,72,.32); }
+.auth-demo { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:.875rem 1rem; font-size:.75rem; color:#64748b; }
+.auth-demo strong { color:#334155; display:block; margin-bottom:.4rem; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="min-vh-100 d-flex align-items-center justify-content-center py-4 px-3 auth-bg" style="background: linear-gradient(135deg, var(--brand-purple-dark) 0%, var(--brand-purple) 60%, #9333ea 100%);">
-  <div class="card auth-card">
-    <div class="card-body p-4 p-md-5">
+
+<div class="auth-wrap">
+
+  <!-- Brand side (desktop only) -->
+  <div class="auth-brand d-none d-lg-flex">
+    <div class="auth-brand-logo"><i class="bi bi-scissors me-2"></i>Tailor<span>App</span></div>
+    <h2 class="auth-brand-headline">Your wardrobe,<br>perfectly tailored.</h2>
+    <p class="auth-brand-sub">Connect with expert tailors in your city. Get custom clothes stitched and delivered to your door.</p>
+    <div class="auth-brand-feat"><i class="bi bi-patch-check-fill"></i>500+ verified tailors across the city</div>
+    <div class="auth-brand-feat"><i class="bi bi-truck"></i>Free home pickup &amp; delivery</div>
+    <div class="auth-brand-feat"><i class="bi bi-star-fill"></i>4.8★ average customer rating</div>
+    <div class="auth-brand-feat"><i class="bi bi-shield-check"></i>Secure payments, guaranteed quality</div>
+  </div>
+
+  <!-- Form side -->
+  <div class="auth-form-side">
+    <div class="auth-card">
       <div class="text-center mb-4">
-        <span style="font-size:2.5rem;">✂️</span>
-        <h3 class="fw-bold mt-2 mb-0">Welcome back</h3>
-        <p class="text-muted small">Sign in to your TailorApp account</p>
+        <div style="font-size:2rem;margin-bottom:.5rem;">👋</div>
+        <h4 class="fw-bold mb-1" style="color:#0f172a;">Welcome back</h4>
+        <p class="text-muted mb-0" style="font-size:.8125rem;">Sign in to your TailorApp account</p>
       </div>
+
       <form method="POST" action="{{ url_for('auth.login') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="mb-3">
-          <label class="form-label fw-semibold">Email address</label>
-          <div class="input-group">
-            <span class="input-group-text bg-light border-end-0"><i class="bi bi-envelope text-muted"></i></span>
-            <input type="email" name="email" class="form-control border-start-0 ps-0" placeholder="you@example.com" required autofocus>
+          <label class="auth-label">Email address</label>
+          <div class="auth-input-icon">
+            <i class="bi bi-envelope"></i>
+            <input type="email" name="email" class="auth-input" placeholder="you@example.com" required autofocus>
           </div>
         </div>
+
         <div class="mb-3">
-          <label class="form-label fw-semibold">Password</label>
-          <div class="input-group">
-            <span class="input-group-text bg-light border-end-0"><i class="bi bi-lock text-muted"></i></span>
-            <input type="password" name="password" class="form-control border-start-0 ps-0" placeholder="••••••••" required>
+          <label class="auth-label">Password</label>
+          <div class="auth-input-icon">
+            <i class="bi bi-lock"></i>
+            <input type="password" name="password" class="auth-input" placeholder="••••••••" required>
           </div>
         </div>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" name="remember" id="remember">
-            <label class="form-check-label text-muted small" for="remember">Keep me signed in</label>
-          </div>
-          <a href="{{ url_for('auth.forgot_password') }}" class="small text-decoration-none" style="color:var(--brand-purple);">Forgot password?</a>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <label class="d-flex align-items-center gap-2 cursor-pointer" style="font-size:.8125rem;color:#64748b;">
+            <input type="checkbox" name="remember" class="form-check-input m-0">
+            Keep me signed in
+          </label>
+          <a href="{{ url_for('auth.forgot_password') }}" style="font-size:.8125rem;font-weight:600;color:#e11d48;text-decoration:none;">Forgot password?</a>
         </div>
-        <button type="submit" class="btn btn-brand-purple w-100 py-2 fw-semibold rounded-pill shadow-sm">
+
+        <button type="submit" class="auth-submit mb-4">
           <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
         </button>
       </form>
-      <hr class="my-4">
-      <p class="text-center text-muted small mb-0">
+
+      <p class="text-center text-muted mb-4" style="font-size:.8125rem;">
         Don't have an account?
-        <a href="{{ url_for('auth.register') }}" class="text-decoration-none fw-semibold" style="color:var(--brand-orange);">Create one</a>
+        <a href="{{ url_for('auth.register') }}" style="font-weight:700;color:#e11d48;text-decoration:none;">Create one free</a>
       </p>
-      <div class="mt-4 p-3 rounded-3 bg-light small text-muted">
-        <strong>Demo accounts:</strong><br>
+
+      <div class="auth-demo">
+        <strong>Demo Accounts</strong>
         Admin: admin@tailorapp.com / admin123<br>
         Tailor: tailor1@tailorapp.com / tailor123<br>
         Delivery: delivery1@tailorapp.com / delivery123<br>
@@ -50,5 +131,6 @@
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}

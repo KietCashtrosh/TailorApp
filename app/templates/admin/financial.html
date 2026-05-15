@@ -1,0 +1,156 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0"><i class="bi bi-cash-coin me-2 text-brand-purple"></i>Financial Dashboard</h4>
+  <p class="text-muted small">Payment tracking, tailor/agent payouts, and refund management.</p>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small mb-1">Total Revenue</div>
+        <div class="fs-3 fw-bold text-success">₹{{ '{:,.0f}'.format(total_revenue) }}</div>
+        <div class="text-muted small">Successful payments</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small mb-1">Total Refunds</div>
+        <div class="fs-3 fw-bold text-danger">₹{{ '{:,.0f}'.format(total_refunds) }}</div>
+        <div class="text-muted small">Initiated or processed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-muted small mb-1">Pending Payouts</div>
+        <div class="fs-3 fw-bold text-warning">₹{{ '{:,.0f}'.format(pending_payouts) }}</div>
+        <div class="text-muted small">To tailors &amp; style agents</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Recent Transactions -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-bold py-3">Recent Transactions</div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light">
+            <tr>
+              <th>Ref</th>
+              <th>Order</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in recent_txns %}
+            <tr>
+              <td class="font-monospace text-muted" style="font-size:.75rem;">{{ txn.transaction_ref[:12] }}…</td>
+              <td>
+                <a href="{{ url_for('admin.order_detail', order_id=txn.order_id) }}"
+                   class="text-decoration-none fw-semibold">
+                  #{{ txn.order.order_number }}
+                </a>
+              </td>
+              <td class="fw-semibold">₹{{ '{:,.0f}'.format(txn.amount) }}</td>
+              <td>
+                <span class="badge bg-light text-dark border">
+                  {{ txn.payment_method.replace('_',' ').title() }}
+                </span>
+              </td>
+              <td>
+                {% if txn.status == 'success' %}
+                  <span class="badge bg-success">Success</span>
+                {% elif txn.status == 'failed' %}
+                  <span class="badge bg-danger" title="{{ txn.failure_reason }}">Failed</span>
+                {% elif txn.status == 'refund_initiated' %}
+                  <span class="badge bg-warning text-dark">Refund Initiated</span>
+                {% elif txn.status == 'refunded' %}
+                  <span class="badge bg-secondary">Refunded</span>
+                {% else %}
+                  <span class="badge bg-light text-dark border">{{ txn.status }}</span>
+                {% endif %}
+              </td>
+              <td class="text-muted">{{ txn.created_at.strftime('%d %b %H:%M') }}</td>
+              <td>
+                {% if txn.status == 'success' %}
+                <form method="POST" action="{{ url_for('admin.initiate_refund', order_id=txn.order_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-warning"
+                          onclick="return confirm('Initiate refund for this order?')">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">No transactions yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tailor Pending Payouts -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-bold py-3">Tailor Pending Payouts</div>
+      <div class="card-body p-0">
+        {% if tailor_earnings %}
+        <ul class="list-group list-group-flush">
+          {% for shop_name, total in tailor_earnings %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span class="small fw-semibold">{{ shop_name }}</span>
+            <span class="badge bg-warning text-dark">₹{{ '{:,.0f}'.format(total) }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-4 small">No pending tailor payouts.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-body">
+        <h6 class="fw-bold mb-2">Payment Split</h6>
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Platform Fee</span>
+            <span class="fw-semibold">10%</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Tailor Share</span>
+            <span class="fw-semibold text-success">80%</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Style Agent</span>
+            <span class="fw-semibold text-info">10%</span>
+          </div>
+        </div>
+        <div class="progress mt-3" style="height:8px;">
+          <div class="progress-bar bg-brand-purple" style="width:10%"></div>
+          <div class="progress-bar bg-success" style="width:80%"></div>
+          <div class="progress-bar bg-info" style="width:10%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

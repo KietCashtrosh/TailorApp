@@ -46,13 +46,31 @@
       </a></li>
 
       <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">Catalogue</li>
+      <li><a href="{{ url_for('admin.catalogue') }}"
+             class="nav-link {% if 'admin.catalogue' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-collection"></i>Product Catalogue
+      </a></li>
       <li><a href="{{ url_for('admin.designs') }}"
              class="nav-link {% if 'admin.design' in request.endpoint %}active{% endif %}">
-        <i class="bi bi-grid"></i>Designs & Pricing
+        <i class="bi bi-grid"></i>Base Designs
       </a></li>
       <li><a href="{{ url_for('admin.coupons') }}"
              class="nav-link {% if 'admin.coupon' in request.endpoint %}active{% endif %}">
         <i class="bi bi-tag"></i>Coupons
+      </a></li>
+
+      <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">Style Agents</li>
+      <li><a href="{{ url_for('admin.appointments') }}"
+             class="nav-link {% if 'admin.appointment' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-calendar-check"></i>Appointments
+      </a></li>
+      <li><a href="{{ url_for('admin.schedule_config') }}"
+             class="nav-link {% if request.endpoint=='admin.schedule_config' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>Schedule Config
+      </a></li>
+      <li><a href="{{ url_for('admin.financial') }}"
+             class="nav-link {% if request.endpoint=='admin.financial' %}active{% endif %}">
+        <i class="bi bi-cash-coin"></i>Financials
       </a></li>
 
       <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">People</li>
@@ -83,6 +101,9 @@
     </ul>
 
     <div class="mt-auto pt-3 border-top px-2">
+      <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint=='admin.settings' %}active{% endif %} mb-2">
+        <i class="bi bi-gear"></i>System Settings
+      </a>
       <div class="text-muted small mb-2">
         <i class="bi bi-person-circle me-1"></i>{{ current_user.name }}
       </div>

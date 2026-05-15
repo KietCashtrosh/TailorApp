@@ -1,0 +1,109 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-brand-purple"></i>Product Catalogue</h4>
+    <p class="text-muted small mb-0">Multi-level fashion designs — Category → Sub-design → Variants</p>
+  </div>
+  <a href="{{ url_for('admin.catalogue_new') }}" class="btn btn-brand-purple">
+    <i class="bi bi-plus-lg me-1"></i>Add Sub-Design
+  </a>
+</div>
+
+{% for category in categories %}
+  {% set cat_designs = all_designs | selectattr('design_id', 'equalto', category.id) | list %}
+  <div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi {{ category.icon }} fs-5 text-brand-purple"></i>
+        <span class="fw-bold fs-5">{{ category.name }}</span>
+        <span class="badge bg-light text-dark border">Base ₹{{ category.base_price|int }}</span>
+        <span class="badge bg-brand-purple-light text-brand-purple">{{ cat_designs|length }} sub-designs</span>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      {% if cat_designs %}
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:48px;">#</th>
+              <th>Sub-Design Name</th>
+              <th>Base Price</th>
+              <th>Variants</th>
+              <th>Tailors</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pd in cat_designs | sort(attribute='display_order') %}
+            <tr>
+              <td>
+                {% set img = pd.main_image() %}
+                {% if img %}
+                  <img src="{{ img.url() }}" class="rounded" style="width:40px;height:40px;object-fit:cover;" alt="">
+                {% else %}
+                  <div class="rounded bg-light d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                    <i class="bi bi-image text-muted"></i>
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('admin.catalogue_detail', design_id=pd.id) }}" class="fw-semibold text-decoration-none text-dark">
+                  {{ pd.name }}
+                </a>
+                {% if pd.description %}
+                  <div class="text-muted small text-truncate" style="max-width:220px;">{{ pd.description }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <span class="fw-semibold">₹{{ pd.effective_base_price()|int }}</span>
+                {% if pd.base_price_modifier != 0 %}
+                  <span class="badge {% if pd.base_price_modifier > 0 %}bg-warning text-dark{% else %}bg-success{% endif %} ms-1">
+                    {% if pd.base_price_modifier > 0 %}+{% endif %}₹{{ pd.base_price_modifier|int }}
+                  </span>
+                {% endif %}
+              </td>
+              <td><span class="badge bg-info text-dark">{{ pd.variants.count() }} groups</span></td>
+              <td><span class="badge bg-secondary">{{ pd.tailor_services.count() }} tailors</span></td>
+              <td>
+                {% if pd.is_active %}
+                  <span class="badge bg-success">Active</span>
+                {% else %}
+                  <span class="badge bg-danger">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{{ url_for('admin.catalogue_detail', design_id=pd.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <a href="{{ url_for('admin.catalogue_edit', design_id=pd.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('admin.catalogue_toggle', design_id=pd.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm {% if pd.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                            title="{{ 'Deactivate' if pd.is_active else 'Activate' }}">
+                      <i class="bi {% if pd.is_active %}bi-eye-slash{% else %}bi-check-circle{% endif %}"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-collection fs-1 opacity-25 d-block mb-2"></i>
+        No sub-designs yet for <strong>{{ category.name }}</strong>.
+        <a href="{{ url_for('admin.catalogue_new') }}?cat={{ category.id }}">Add one</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

@@ -1,105 +1,224 @@
 {% extends "base.html" %}
 {% block title %}Order {{ order.order_number }}{% endblock %}
-{% block content %}
-<div class="container py-4" style="max-width:860px;">
-  <a href="{{ url_for('customer.my_orders') }}" class="btn btn-sm btn-outline-secondary mb-4">
-    <i class="bi bi-arrow-left me-1"></i>My Orders
-  </a>
+{% block extra_head %}
+<style>
+body { background:#f8fafc; }
 
-  <!-- Status Banner -->
-  <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg,#1e1b4b,#4f46e5);">
-    <div class="card-body p-4 text-white">
-      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+/* Hero banner */
+.order-hero {
+  background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+  padding:1.75rem 0 0;
+}
+.order-hero-inner { padding:0 1rem 1.5rem; color:#fff; }
+.order-hero-badge {
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding:.35rem 1rem; border-radius:50rem; font-size:.78rem; font-weight:700;
+  letter-spacing:.02em;
+}
+.hero-progress { background:rgba(255,255,255,.12); border-radius:0; padding:.875rem 1rem; margin-top:1.5rem; }
+
+/* Progress track (hero version) */
+.hp-track { display:flex; align-items:flex-start; width:100%; }
+.hp-step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; position:relative; }
+.hp-step::before { content:''; position:absolute; top:11px; left:calc(-50%); right:calc(50%); height:2px; background:rgba(255,255,255,.2); z-index:0; }
+.hp-step:first-child::before { display:none; }
+.hp-step.done::before,.hp-step.active::before { background:#e11d48; }
+.hp-dot { width:24px; height:24px; border-radius:50%; background:rgba(255,255,255,.18); border:2px solid rgba(255,255,255,.3); z-index:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.hp-dot i { font-size:.65rem; color:#fff; }
+.hp-step.done .hp-dot { background:#059669; border-color:#059669; }
+.hp-step.active .hp-dot { background:#e11d48; border-color:#e11d48; box-shadow:0 0 0 3px rgba(225,29,72,.3); }
+.hp-label { font-size:.58rem; font-weight:600; color:rgba(255,255,255,.45); text-align:center; line-height:1.2; }
+.hp-step.done .hp-label,.hp-step.active .hp-label { color:rgba(255,255,255,.9); }
+
+/* Info cards */
+.info-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:16px; overflow:hidden; margin-bottom:1rem; }
+.info-card-head { padding:.875rem 1.25rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:.5rem; }
+.info-card-head-title { font-size:.8125rem; font-weight:700; color:#0f172a; }
+.info-card-body { padding:1.25rem; }
+
+/* Detail row */
+.detail-row { display:flex; flex-direction:column; gap:.15rem; }
+.detail-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; }
+.detail-val { font-size:.875rem; font-weight:600; color:#0f172a; }
+
+/* OTP card */
+.otp-card { background:#fff; border:1.5px solid #fbbf24; border-radius:16px; overflow:hidden; margin-bottom:1rem; }
+.otp-box { background:#fffbeb; border-radius:10px; padding:1rem; text-align:center; }
+.otp-number { font-size:2rem; font-weight:900; letter-spacing:.15em; color:#d97706; line-height:1; }
+
+/* Timeline */
+.tl-item { display:flex; gap:.875rem; padding-bottom:1.25rem; position:relative; }
+.tl-item:not(:last-child)::before { content:''; position:absolute; left:11px; top:24px; bottom:0; width:2px; background:#e2e8f0; }
+.tl-dot { width:24px; height:24px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#059669; box-shadow:0 0 0 3px rgba(5,150,105,.12); }
+.tl-dot i { font-size:.65rem; color:#fff; }
+.tl-content { flex:1; padding-top:2px; }
+.tl-title { font-size:.8125rem; font-weight:700; color:#0f172a; }
+.tl-time { font-size:.72rem; color:#94a3b8; margin-top:.1rem; }
+.tl-note { font-size:.75rem; color:#64748b; font-style:italic; margin-top:.2rem; }
+
+/* Status notice */
+.status-notice { border-radius:10px; padding:.75rem 1rem; font-size:.8125rem; font-weight:500; display:flex; align-items:center; gap:.5rem; margin-top:.75rem; }
+.sn-waiting  { background:#eff6ff; color:#1d4ed8; }
+.sn-pickup   { background:#ecfdf5; color:#059669; }
+.sn-stitching{ background:#f5f3ff; color:#7c3aed; }
+.sn-ready    { background:#ecfdf5; color:#059669; }
+.sn-delivery { background:#eff6ff; color:#1d4ed8; }
+.sn-done     { background:#ecfdf5; color:#059669; }
+
+/* Measurement grid */
+.meas-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:.5rem .75rem; }
+.meas-label { font-size:.65rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#94a3b8; }
+.meas-val { font-size:.875rem; font-weight:700; color:#0f172a; }
+
+/* Chat */
+.chat-box { max-height:300px; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:.5rem; }
+.msg-mine { align-self:flex-end; max-width:76%; }
+.msg-other { align-self:flex-start; max-width:76%; }
+.msg-bubble { border-radius:14px; padding:.5rem .875rem; font-size:.8125rem; line-height:1.45; }
+.msg-mine .msg-bubble { background:#e11d48; color:#fff; border-bottom-right-radius:4px; }
+.msg-other .msg-bubble { background:#f1f5f9; color:#0f172a; border-bottom-left-radius:4px; }
+.msg-meta { font-size:.65rem; color:#94a3b8; margin-top:.2rem; }
+.msg-mine .msg-meta { text-align:right; }
+.chat-input-row { display:flex; gap:.5rem; padding:.875rem 1rem; border-top:1px solid #f1f5f9; }
+.chat-input { flex:1; border:1.5px solid #e2e8f0; border-radius:50rem; padding:.5rem 1rem; font-size:.8125rem; outline:none; transition:border-color .15s; }
+.chat-input:focus { border-color:#e11d48; }
+.chat-send { background:#e11d48; color:#fff; border:none; border-radius:50rem; padding:.5rem 1.1rem; font-size:.8125rem; cursor:pointer; transition:background .15s; }
+.chat-send:hover { background:#be123c; }
+
+/* Review stars */
+.star-filled { color:#f59e0b; }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Hero Banner -->
+<div class="order-hero">
+  <div class="container px-3 px-md-4">
+    <div class="order-hero-inner">
+      <a href="{{ url_for('customer.my_orders') }}" class="d-inline-flex align-items-center gap-1 mb-3" style="color:rgba(255,255,255,.6);font-size:.78rem;text-decoration:none;">
+        <i class="bi bi-arrow-left"></i> My Orders
+      </a>
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
         <div>
-          <div class="small text-white-50 mb-1">Order Number</div>
-          <h4 class="fw-bold mb-1"><code class="text-white">{{ order.order_number }}</code></h4>
-          <div class="small text-white-50">Placed on {{ order.created_at.strftime('%d %B %Y') }}</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.5);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem;">Order Number</div>
+          <h4 class="fw-bold mb-1" style="letter-spacing:.02em;font-family:monospace;">{{ order.order_number }}</h4>
+          <div style="font-size:.78rem;color:rgba(255,255,255,.5);">Placed {{ order.created_at.strftime('%d %B %Y') }}</div>
           {% if order.family_profile %}
           <div class="mt-2">
-            <span class="badge rounded-pill text-white" style="background:{{ order.family_profile.avatar_color }};">
+            <span class="px-2 py-1 rounded-pill" style="background:{{ order.family_profile.avatar_color }};color:#fff;font-size:.72rem;font-weight:700;">
               <i class="bi bi-person me-1"></i>For {{ order.family_profile.name }}
             </span>
           </div>
           {% endif %}
         </div>
-        <span class="badge bg-{{ order.status_badge() }} fs-5 px-4 py-2">{{ order.status_label() }}</span>
+        <span class="order-hero-badge
+          {% if order.status == 'placed' %}{% set _bg = 'background:#1d4ed8;color:#fff;' %}
+          {% elif order.status in ('accepted','ready','delivered') %}{% set _bg = 'background:#059669;color:#fff;' %}
+          {% elif order.status == 'stitching' %}{% set _bg = 'background:#7c3aed;color:#fff;' %}
+          {% elif order.status in ('rejected','cancelled') %}{% set _bg = 'background:#dc2626;color:#fff;' %}
+          {% else %}{% set _bg = 'background:#d97706;color:#fff;' %}{% endif %}"
+          style="{% if order.status == 'placed' %}background:#1d4ed8;color:#fff;{% elif order.status in ('accepted','ready','delivered') %}background:#059669;color:#fff;{% elif order.status == 'stitching' %}background:#7c3aed;color:#fff;{% elif order.status in ('rejected','cancelled') %}background:#dc2626;color:#fff;{% else %}background:#d97706;color:#fff;{% endif %}">
+          <span style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;opacity:.7;"></span>
+          {{ order.status_label() }}
+        </span>
       </div>
-
-      {% set steps = ['placed','accepted','fabric_pickup','fabric_collected','stitching','ready','out_for_delivery','delivered'] %}
-      {% if order.status not in ['rejected','cancelled'] %}
-      {% set current_idx = steps.index(order.status) if order.status in steps else 0 %}
-      {% set pct = ((current_idx) / (steps|length - 1) * 100) | int %}
-      <div class="mt-4">
-        <div class="progress" style="height:8px;border-radius:4px;background:rgba(255,255,255,.2);">
-          <div class="progress-bar bg-white" style="width:{{ pct }}%"></div>
-        </div>
-        <div class="d-flex justify-content-between mt-2" style="font-size:.65rem;color:rgba(255,255,255,.6);">
-          <span>Placed</span><span>Accepted</span><span>Stitching</span><span>Ready</span><span>Delivered</span>
-        </div>
-      </div>
-      {% endif %}
     </div>
-  </div>
 
+    {% if order.status not in ['rejected','cancelled'] %}
+    <div class="hero-progress">
+      <div class="container px-0">
+        {% set status_order = ['placed','accepted','fabric_pickup','fabric_collected','stitching','ready','out_for_delivery','delivered'] %}
+        {% set cur_idx = status_order.index(order.status) if order.status in status_order else 0 %}
+        {% set steps = [('placed','bi-check','Placed'),('accepted','bi-check','Accepted'),('fabric_collected','bi-check','Fabric'),('stitching','bi-scissors','Stitching'),('ready','bi-bag-check','Ready'),('delivered','bi-house','Delivered')] %}
+        <div class="hp-track">
+          {% for key, icon, label in steps %}
+          {% set step_idx = status_order.index(key) if key in status_order else 0 %}
+          <div class="hp-step {% if step_idx < cur_idx %}done{% elif step_idx == cur_idx %}active{% endif %}">
+            <div class="hp-dot">
+              {% if step_idx < cur_idx %}<i class="bi bi-check"></i>{% elif step_idx == cur_idx %}<i class="bi {{ icon }}"></i>{% endif %}
+            </div>
+            <div class="hp-label">{{ label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="container px-3 px-md-4 py-4">
   <div class="row g-4">
+
+    <!-- Left Column -->
     <div class="col-lg-7">
 
       <!-- Order Summary -->
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-semibold py-3">Order Summary</div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="text-muted small">Design</div>
-              <div class="fw-semibold">{{ order.display_design_name() }}</div>
-            </div>
-            <div class="col-md-6">
-              <div class="text-muted small">Tailor</div>
-              <div class="fw-semibold">{{ order.tailor.shop_name }}</div>
-              <div class="text-muted small">{{ order.tailor.user.phone }}</div>
-            </div>
-            <div class="col-md-4">
-              <div class="text-muted small">Price</div>
-              <div class="fw-semibold text-success fs-5">Rs.{{ order.final_price or order.estimated_price or '—' }}</div>
-              {% if order.discount_amount and order.discount_amount > 0 %}
-              <div class="text-muted small">Discount: <span class="text-danger">-Rs.{{ order.discount_amount|int }}</span>
-                {% if order.coupon_code %}<span class="badge bg-light text-dark border ms-1">{{ order.coupon_code }}</span>{% endif %}
+      <div class="info-card">
+        <div class="info-card-head"><i class="bi bi-receipt" style="color:#e11d48;"></i><span class="info-card-head-title">Order Summary</span></div>
+        <div class="info-card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <div class="detail-row">
+                <span class="detail-label">Design</span>
+                <span class="detail-val">{{ order.display_design_name() }}</span>
               </div>
-              {% endif %}
             </div>
-            <div class="col-md-4">
-              <div class="text-muted small">Est. Days</div>
-              <div class="fw-semibold">{{ order.estimated_days or '—' }}</div>
-              {% set eta = order.eta_date() %}
-              {% if eta %}
-              <div class="text-brand-orange small fw-semibold"><i class="bi bi-calendar-check me-1"></i>Ready by {{ eta }}</div>
-              {% endif %}
+            <div class="col-6">
+              <div class="detail-row">
+                <span class="detail-label">Tailor</span>
+                <span class="detail-val">{{ order.tailor.shop_name }}</span>
+                <span style="font-size:.75rem;color:#64748b;">{{ order.tailor.user.phone }}</span>
+              </div>
             </div>
-            <div class="col-md-4">
-              <div class="text-muted small">Payment</div>
-              <div class="fw-semibold">{{ order.payment_method_label() }}</div>
-              <span class="badge {% if order.payment_status == 'paid' %}bg-success{% elif order.payment_status == 'unpaid' %}bg-danger{% else %}bg-warning text-dark{% endif %} small">
-                {{ order.payment_status_label() }}
-              </span>
+            <div class="col-6 col-md-4">
+              <div class="detail-row">
+                <span class="detail-label">Amount</span>
+                <span class="detail-val" style="color:#e11d48;">₹{{ order.final_price or order.estimated_price or '—' }}</span>
+                {% if order.discount_amount and order.discount_amount > 0 %}
+                <span style="font-size:.72rem;color:#059669;">Saved ₹{{ order.discount_amount|int }}{% if order.coupon_code %} · {{ order.coupon_code }}{% endif %}</span>
+                {% endif %}
+              </div>
             </div>
-            <div class="col-12">
-              <div class="text-muted small">Pickup Address</div>
-              <div><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ order.pickup_address }}</div>
+            <div class="col-6 col-md-4">
+              <div class="detail-row">
+                <span class="detail-label">Est. Days</span>
+                <span class="detail-val">{{ order.estimated_days or '—' }}</span>
+                {% set eta = order.eta_date() %}
+                {% if eta %}<span style="font-size:.72rem;color:#059669;font-weight:600;"><i class="bi bi-calendar-check me-1"></i>Ready by {{ eta }}</span>{% endif %}
+              </div>
             </div>
-            <div class="col-12">
-              <div class="text-muted small">Delivery Address</div>
-              <div><i class="bi bi-geo-alt-fill text-success me-1"></i>{{ order.delivery_address }}</div>
+            <div class="col-6 col-md-4">
+              <div class="detail-row">
+                <span class="detail-label">Payment</span>
+                <span class="detail-val">{{ order.payment_method_label() }}</span>
+                <span class="mt-1" style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;
+                  {% if order.payment_status == 'paid' %}color:#059669;{% elif order.payment_status == 'unpaid' %}color:#dc2626;{% else %}color:#d97706;{% endif %}">
+                  <i class="bi {% if order.payment_status == 'paid' %}bi-check-circle-fill{% elif order.payment_status == 'unpaid' %}bi-x-circle-fill{% else %}bi-clock-fill{% endif %}"></i>
+                  {{ order.payment_status_label() }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-geo-alt-fill mt-1 flex-shrink-0" style="color:#e11d48;font-size:.8rem;"></i>
+              <div><div class="detail-label">Pickup Address</div><div style="font-size:.8125rem;color:#334155;">{{ order.pickup_address }}</div></div>
+            </div>
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-geo-alt-fill mt-1 flex-shrink-0" style="color:#059669;font-size:.8rem;"></i>
+              <div><div class="detail-label">Delivery Address</div><div style="font-size:.8125rem;color:#334155;">{{ order.delivery_address }}</div></div>
             </div>
             {% if order.fabric_description %}
-            <div class="col-12">
-              <div class="text-muted small">Fabric</div>
-              <div>{{ order.fabric_description }}</div>
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-layers mt-1 flex-shrink-0" style="color:#64748b;font-size:.8rem;"></i>
+              <div><div class="detail-label">Fabric</div><div style="font-size:.8125rem;color:#334155;">{{ order.fabric_description }}</div></div>
             </div>
             {% endif %}
             {% if order.special_instructions %}
-            <div class="col-12">
-              <div class="text-muted small">Special Instructions</div>
-              <div>{{ order.special_instructions }}</div>
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-chat-left-text mt-1 flex-shrink-0" style="color:#64748b;font-size:.8rem;"></i>
+              <div><div class="detail-label">Special Instructions</div><div style="font-size:.8125rem;color:#334155;">{{ order.special_instructions }}</div></div>
             </div>
             {% endif %}
           </div>
@@ -108,39 +227,44 @@
 
       <!-- OTP Codes -->
       {% if assignments %}
-      <div class="card border-0 shadow-sm mb-4 border-warning border-2">
-        <div class="card-header bg-warning bg-opacity-10 py-3">
-          <span class="fw-semibold text-warning"><i class="bi bi-key-fill me-2"></i>Your OTP Codes</span>
-          <div class="text-muted small mt-1">Share these with the delivery agent when they arrive.</div>
+      <div class="otp-card">
+        <div class="info-card-head" style="background:#fffbeb;border-bottom:1px solid #fef3c7;">
+          <i class="bi bi-key-fill" style="color:#d97706;"></i>
+          <span class="info-card-head-title">Your OTP Codes</span>
+          <span class="ms-auto" style="font-size:.72rem;color:#92400e;">Share with delivery agent</span>
         </div>
-        <div class="card-body">
+        <div class="info-card-body">
           {% for a in assignments %}
           <div class="{% if not loop.last %}border-bottom pb-3 mb-3{% endif %}">
-            <div class="text-muted small fw-semibold mb-2">
-              {% if a.assignment_type == 'pickup_fabric' %}Fabric Pickup Assignment{% else %}Clothes Delivery Assignment{% endif %}
+            <div class="fw-semibold mb-2" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:#92400e;">
+              {% if a.assignment_type == 'pickup_fabric' %}Fabric Pickup{% else %}Clothes Delivery{% endif %}
             </div>
-            <div class="row g-3">
+            <div class="row g-2">
               <div class="col-6">
-                <div class="text-muted small">Pickup OTP</div>
-                <div class="fw-bold fs-3 {% if a.pickup_otp_verified %}text-muted{% else %}text-warning{% endif %}">
-                  {{ a.pickup_otp }}
+                <div class="otp-box">
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;margin-bottom:.35rem;">Pickup OTP</div>
+                  <div class="otp-number {% if a.pickup_otp_verified %}text-muted{% endif %}">{{ a.pickup_otp }}</div>
+                  <div class="mt-2">
+                    {% if a.pickup_otp_verified %}
+                    <span style="font-size:.7rem;font-weight:700;color:#059669;"><i class="bi bi-check-circle-fill me-1"></i>Verified</span>
+                    {% else %}
+                    <span style="font-size:.7rem;font-weight:600;color:#d97706;">Give on pickup</span>
+                    {% endif %}
+                  </div>
                 </div>
-                {% if a.pickup_otp_verified %}
-                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Verified</span>
-                {% else %}
-                <span class="badge bg-warning text-dark">Give to agent on pickup</span>
-                {% endif %}
               </div>
               <div class="col-6">
-                <div class="text-muted small">Delivery OTP</div>
-                <div class="fw-bold fs-3 {% if a.delivery_otp_verified %}text-muted{% else %}text-success{% endif %}">
-                  {{ a.delivery_otp }}
+                <div class="otp-box">
+                  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;margin-bottom:.35rem;">Delivery OTP</div>
+                  <div class="otp-number {% if a.delivery_otp_verified %}text-muted{% endif %}">{{ a.delivery_otp }}</div>
+                  <div class="mt-2">
+                    {% if a.delivery_otp_verified %}
+                    <span style="font-size:.7rem;font-weight:700;color:#059669;"><i class="bi bi-check-circle-fill me-1"></i>Verified</span>
+                    {% else %}
+                    <span style="font-size:.7rem;font-weight:600;color:#64748b;">Give on delivery</span>
+                    {% endif %}
+                  </div>
                 </div>
-                {% if a.delivery_otp_verified %}
-                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Verified</span>
-                {% else %}
-                <span class="badge bg-secondary">Give to agent on delivery</span>
-                {% endif %}
               </div>
             </div>
           </div>
@@ -151,21 +275,29 @@
 
       <!-- Multi-item list -->
       {% if order.is_multi_item() %}
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-list-check me-2"></i>Items in this Order</div>
-        <div class="card-body p-0">
+      <div class="info-card">
+        <div class="info-card-head"><i class="bi bi-list-check" style="color:#e11d48;"></i><span class="info-card-head-title">Items in this Order</span></div>
+        <div style="padding:0;">
           {% for item in order.order_items.all() %}
-          <div class="d-flex align-items-center gap-3 p-3 {% if not loop.last %}border-bottom{% endif %}">
-            <span style="font-size:1.4rem;">
-              {% if item.design.name == 'Blouse' %}🪡{% elif item.design.name == 'Lehenga' %}👗{% elif item.design.name == 'Shirt' %}👔{% elif item.design.name == 'Trouser' %}👖{% else %}✂️{% endif %}
-            </span>
-            <div class="flex-grow-1">
-              <div class="fw-semibold small">{{ item.design.name }}</div>
-              {% if item.fabric_description %}<div class="text-muted small">{{ item.fabric_description }}</div>{% endif %}
-            </div>
-            <div class="text-end">
-              <div class="fw-semibold text-brand-orange small">₹{{ item.unit_price|int }}</div>
-              {% if item.quantity > 1 %}<div class="text-muted" style="font-size:.7rem;">× {{ item.quantity }}</div>{% endif %}
+          {% set ivars = item.get_selected_variants() %}
+          <div class="px-4 py-3 {% if not loop.last %}border-bottom{% endif %}" style="border-color:#f1f5f9;">
+            <div class="d-flex align-items-start gap-3">
+              <span style="font-size:1.4rem;">{% if item.design.name == 'Blouse' %}🪡{% elif item.design.name == 'Saree Blouse' %}🧵{% elif item.design.name == 'Lehenga' %}👗{% elif item.design.name == 'Shirt' %}👔{% elif item.design.name == 'Trouser' %}👖{% elif item.design.name == 'Salwar Suit' %}🥻{% elif item.design.name == 'Kurti' %}🎨{% elif item.design.name == 'Skirt' %}👘{% elif item.design.name == 'Dress/Frock' %}🌸{% elif item.design.name == 'Jacket/Blazer' %}🧥{% elif item.design.name == 'Ethnic/Indo-Western' %}✨{% else %}✂️{% endif %}</span>
+              <div class="flex-grow-1">
+                <div class="fw-semibold" style="font-size:.875rem;color:#0f172a;">{{ item.design.name }}</div>
+                {% if ivars %}
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  {% for grp, opt in ivars.items() %}
+                  <span style="font-size:.65rem;padding:.15rem .55rem;border-radius:20px;background:#f8fafc;border:1px solid #e2e8f0;color:#334155;">{{ grp }}: <strong>{{ opt }}</strong></span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+                {% if item.fabric_description %}<div class="text-muted mt-1" style="font-size:.75rem;">{{ item.fabric_description }}</div>{% endif %}
+              </div>
+              <div class="text-end flex-shrink-0">
+                <div class="fw-bold" style="color:#e11d48;font-size:.875rem;">₹{{ item.unit_price|int }}</div>
+                {% if item.quantity > 1 %}<div class="text-muted" style="font-size:.7rem;">× {{ item.quantity }}</div>{% endif %}
+              </div>
             </div>
           </div>
           {% endfor %}
@@ -176,16 +308,16 @@
       <!-- Rejection Notice -->
       {% if order.status == 'rejected' %}
       {% set reject_history = order.status_history.filter_by(status='rejected').first() %}
-      <div class="card border-0 shadow-sm mb-4 border-danger border-2">
-        <div class="card-body p-4">
+      <div class="info-card" style="border-color:#fecaca;">
+        <div class="info-card-body">
           <div class="d-flex gap-3 align-items-start">
-            <i class="bi bi-x-circle-fill text-danger fs-3 flex-shrink-0"></i>
+            <i class="bi bi-x-circle-fill flex-shrink-0" style="color:#dc2626;font-size:1.5rem;margin-top:.1rem;"></i>
             <div>
-              <div class="fw-semibold text-danger mb-1">Order Rejected by Tailor</div>
+              <div class="fw-bold mb-1" style="color:#dc2626;">Order Rejected by Tailor</div>
               {% if reject_history and reject_history.note %}
-              <div class="text-muted small"><strong>Reason:</strong> {{ reject_history.note }}</div>
+              <div style="font-size:.8125rem;color:#64748b;"><strong>Reason:</strong> {{ reject_history.note }}</div>
               {% endif %}
-              <a href="{{ url_for('customer.tailors') }}" class="btn btn-sm btn-outline-danger mt-2">
+              <a href="{{ url_for('customer.tailors') }}" class="btn btn-sm btn-outline-danger rounded-pill mt-2 px-3">
                 <i class="bi bi-search me-1"></i>Find another tailor
               </a>
             </div>
@@ -196,20 +328,20 @@
 
       <!-- Cancel Order -->
       {% if order.status == 'placed' %}
-      <div class="card border-0 shadow-sm mb-4 border-warning border-2">
-        <div class="card-body p-4">
-          <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Cancel Order</div>
-          <div class="text-muted small mb-3">You can cancel this order while it is still waiting for the tailor to accept it.</div>
-          <button class="btn btn-outline-danger btn-sm" data-bs-toggle="collapse" data-bs-target="#cancelForm">
+      <div class="info-card" style="border-color:#fef3c7;">
+        <div class="info-card-body">
+          <div class="fw-semibold mb-1" style="font-size:.875rem;"><i class="bi bi-exclamation-triangle me-2" style="color:#d97706;"></i>Cancel Order</div>
+          <div class="text-muted mb-3" style="font-size:.78rem;">You can cancel while the order is waiting for tailor acceptance.</div>
+          <button class="btn btn-sm btn-outline-danger rounded-pill px-3" data-bs-toggle="collapse" data-bs-target="#cancelForm">
             <i class="bi bi-x-circle me-1"></i>Cancel This Order
           </button>
           <div class="collapse mt-3" id="cancelForm">
             <form method="POST" action="{{ url_for('customer.cancel_order', order_id=order.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <label class="form-label small fw-semibold">Reason for cancellation (optional)</label>
-              <input type="text" name="reason" class="form-control form-control-sm mb-2"
+              <label class="form-label fw-semibold" style="font-size:.78rem;">Reason (optional)</label>
+              <input type="text" name="reason" class="form-control form-control-sm mb-2 rounded-3"
                      placeholder="e.g. Changed my mind, found another tailor">
-              <button type="submit" class="btn btn-danger btn-sm">
+              <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3">
                 <i class="bi bi-x-lg me-1"></i>Confirm Cancellation
               </button>
             </form>
@@ -219,143 +351,157 @@
       {% endif %}
 
       <!-- Measurements -->
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-rulers me-2"></i>Measurements</div>
-        <div class="card-body">
+      <div class="info-card">
+        <div class="info-card-head"><i class="bi bi-rulers" style="color:#e11d48;"></i><span class="info-card-head-title">Measurements</span></div>
+        <div class="info-card-body">
           <div class="row g-2">
             {% for field in design_fields %}
             <div class="col-6 col-md-4">
-              <div class="text-muted small">{{ field.label }}</div>
-              <div class="fw-semibold">{{ measurements.get(field.key, '—') }} in</div>
+              <div class="meas-item">
+                <div class="meas-label">{{ field.label }}</div>
+                <div class="meas-val">{{ measurements.get(field.key, '—') }} <span style="font-size:.65rem;font-weight:400;color:#94a3b8;">in</span></div>
+              </div>
             </div>
             {% endfor %}
           </div>
         </div>
       </div>
 
+      <!-- Tailor Work Photos (visible from stitching stage onwards) -->
+      {% set work_imgs = order.get_work_images() %}
+      {% if work_imgs and order.status in ['stitching', 'ready', 'out_for_delivery', 'delivered'] %}
+      <div class="info-card">
+        <div class="info-card-head">
+          <i class="bi bi-images" style="color:#e11d48;"></i>
+          <span class="info-card-head-title">Work Progress Photos</span>
+          <span class="ms-auto badge rounded-pill" style="background:#e11d48;font-size:.65rem;">{{ work_imgs|length }}</span>
+        </div>
+        <div class="info-card-body">
+          <div class="d-flex flex-wrap gap-2">
+            {% for img in work_imgs %}
+            <a href="{{ url_for('static', filename='uploads/work_images/' + img) }}" target="_blank">
+              <img src="{{ url_for('static', filename='uploads/work_images/' + img) }}"
+                   alt="Work photo" class="rounded-2 border"
+                   style="width:80px;height:80px;object-fit:cover;cursor:zoom-in;">
+            </a>
+            {% endfor %}
+          </div>
+          <div class="text-muted mt-2" style="font-size:.75rem;">Uploaded by your tailor as work progress updates.</div>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Review -->
       {% if order.status == 'delivered' %}
       {% if order.review %}
-      <div class="card border-0 shadow-sm border-start border-4 border-success">
-        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-star-fill text-warning me-2"></i>Your Review</div>
-        <div class="card-body">
-          <div class="mb-2">
-            <div class="text-muted small mb-1">Tailor Rating</div>
-            <div>
-              {% for i in range(5) %}<i class="bi bi-star{% if i < order.review.tailor_rating %}-fill text-warning{% endif %}"></i>{% endfor %}
-            </div>
-            {% if order.review.tailor_comment %}<div class="text-muted small fst-italic mt-1">{{ order.review.tailor_comment }}</div>{% endif %}
+      <div class="info-card" style="border-color:#bbf7d0;">
+        <div class="info-card-head" style="background:#f0fdf4;border-bottom:1px solid #bbf7d0;">
+          <i class="bi bi-star-fill" style="color:#f59e0b;"></i>
+          <span class="info-card-head-title">Your Review</span>
+        </div>
+        <div class="info-card-body">
+          <div class="mb-3">
+            <div class="detail-label mb-1">Tailor Rating</div>
+            <div>{% for i in range(5) %}<i class="bi bi-star{% if i < order.review.tailor_rating %}-fill star-filled{% endif %}" style="font-size:1rem;"></i>{% endfor %}</div>
+            {% if order.review.tailor_comment %}<div class="text-muted mt-1" style="font-size:.8125rem;font-style:italic;">"{{ order.review.tailor_comment }}"</div>{% endif %}
           </div>
           {% if order.review.delivery_rating %}
           <div>
-            <div class="text-muted small mb-1">Delivery Rating</div>
-            <div>
-              {% for i in range(5) %}<i class="bi bi-star{% if i < order.review.delivery_rating %}-fill text-warning{% endif %}"></i>{% endfor %}
-            </div>
-            {% if order.review.delivery_comment %}<div class="text-muted small fst-italic mt-1">{{ order.review.delivery_comment }}</div>{% endif %}
+            <div class="detail-label mb-1">Delivery Rating</div>
+            <div>{% for i in range(5) %}<i class="bi bi-star{% if i < order.review.delivery_rating %}-fill star-filled{% endif %}" style="font-size:1rem;"></i>{% endfor %}</div>
+            {% if order.review.delivery_comment %}<div class="text-muted mt-1" style="font-size:.8125rem;font-style:italic;">"{{ order.review.delivery_comment }}"</div>{% endif %}
           </div>
           {% endif %}
         </div>
       </div>
       {% else %}
-      <div class="card border-0 shadow-sm border-start border-4 border-warning">
-        <div class="card-body p-4 d-flex align-items-center gap-3">
-          <i class="bi bi-star-half text-warning fs-2"></i>
-          <div>
-            <div class="fw-semibold mb-1">How was your experience?</div>
-            <div class="text-muted small mb-2">Rate your tailor and delivery agent.</div>
-            <a href="{{ url_for('customer.submit_review', order_id=order.id) }}" class="btn btn-warning btn-sm fw-semibold">
-              <i class="bi bi-star me-1"></i>Write a Review
-            </a>
+      <div class="info-card" style="border-color:#fde68a;">
+        <div class="info-card-body">
+          <div class="d-flex gap-3 align-items-center">
+            <div style="font-size:2rem;">⭐</div>
+            <div class="flex-grow-1">
+              <div class="fw-bold mb-1" style="font-size:.875rem;color:#0f172a;">How was your experience?</div>
+              <div class="text-muted mb-2" style="font-size:.78rem;">Rate your tailor and delivery agent.</div>
+              <a href="{{ url_for('customer.submit_review', order_id=order.id) }}" class="btn btn-sm btn-warning rounded-pill px-3 fw-semibold" style="font-size:.78rem;">
+                <i class="bi bi-star me-1"></i>Write a Review
+              </a>
+            </div>
           </div>
         </div>
       </div>
       {% endif %}
       {% endif %}
 
-      <!-- Chat Panel -->
+      <!-- Chat -->
       {% if order.status not in ['placed', 'rejected', 'cancelled'] %}
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white fw-semibold py-3 d-flex align-items-center gap-2">
-          <i class="bi bi-chat-dots text-brand-purple"></i>Chat with Tailor
+      <div class="info-card">
+        <div class="info-card-head">
+          <i class="bi bi-chat-dots" style="color:#e11d48;"></i>
+          <span class="info-card-head-title">Chat with Tailor</span>
+          <span class="ms-auto" style="width:8px;height:8px;border-radius:50%;background:#059669;display:inline-block;" title="Online"></span>
         </div>
-        <div class="card-body p-0">
-          <div id="chatMessages" style="max-height:320px;overflow-y:auto;padding:1rem;">
-            {% for m in messages %}
-            <div class="d-flex {% if m.sender_id == current_user.id %}justify-content-end{% endif %} mb-2" data-msg-id="{{ m.id }}">
-              <div class="rounded-3 px-3 py-2 shadow-sm" style="max-width:75%;{% if m.sender_id == current_user.id %}background:#6f42c1;color:#fff;{% else %}background:#f8f9fa;{% endif %}">
-                {% if m.sender_id != current_user.id %}<div class="fw-semibold" style="font-size:.7rem;margin-bottom:2px;">{{ m.sender.name }}</div>{% endif %}
-                <div class="small">{{ m.content }}</div>
-                <div style="font-size:.65rem;opacity:.7;margin-top:2px;text-align:right;">{{ m.created_at.strftime('%I:%M %p') }}</div>
-              </div>
-            </div>
-            {% endfor %}
+        <div class="chat-box" id="chatMessages">
+          {% for m in messages %}
+          <div class="{% if m.sender_id == current_user.id %}msg-mine{% else %}msg-other{% endif %}" data-msg-id="{{ m.id }}">
+            {% if m.sender_id != current_user.id %}
+            <div style="font-size:.65rem;color:#94a3b8;margin-bottom:.2rem;font-weight:600;">{{ m.sender.name }}</div>
+            {% endif %}
+            <div class="msg-bubble">{{ m.content }}</div>
+            <div class="msg-meta">{{ m.created_at.strftime('%I:%M %p') }}</div>
           </div>
-          <div class="border-top p-3">
-            <form method="POST" action="{{ url_for('customer.send_message', order_id=order.id) }}" id="chatForm">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <div class="d-flex gap-2">
-                <input type="text" name="content" id="chatInput" class="form-control rounded-pill"
-                       placeholder="Type a message…" autocomplete="off" required>
-                <button type="submit" class="btn btn-brand-purple rounded-pill px-3">
-                  <i class="bi bi-send"></i>
-                </button>
-              </div>
-            </form>
-          </div>
+          {% endfor %}
+        </div>
+        <div class="chat-input-row">
+          <form method="POST" action="{{ url_for('customer.send_message', order_id=order.id) }}" id="chatForm" class="d-flex gap-2 flex-grow-1">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="content" id="chatInput" class="chat-input" placeholder="Type a message…" autocomplete="off" required>
+            <button type="submit" class="chat-send"><i class="bi bi-send"></i></button>
+          </form>
         </div>
       </div>
       {% endif %}
 
     </div>
 
+    <!-- Right Column: Timeline -->
     <div class="col-lg-5">
-      <!-- Status Timeline -->
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold py-3"><i class="bi bi-clock-history me-2"></i>Order Timeline</div>
-        <div class="card-body">
+      <div class="info-card" style="position:sticky;top:80px;">
+        <div class="info-card-head"><i class="bi bi-clock-history" style="color:#e11d48;"></i><span class="info-card-head-title">Order Timeline</span></div>
+        <div class="info-card-body">
           {% if history %}
-          <div class="status-timeline">
+          <div>
             {% for h in history %}
-            <div class="step done">
-              <div class="fw-semibold small">{{ h.status_label() }}</div>
-              <div class="text-muted" style="font-size:.75rem;">{{ h.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
-              {% if h.note %}<div class="text-muted small fst-italic">{{ h.note }}</div>{% endif %}
+            <div class="tl-item">
+              <div class="tl-dot"><i class="bi bi-check"></i></div>
+              <div class="tl-content">
+                <div class="tl-title">{{ h.status_label() }}</div>
+                <div class="tl-time">{{ h.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+                {% if h.note %}<div class="tl-note">{{ h.note }}</div>{% endif %}
+              </div>
             </div>
             {% endfor %}
           </div>
           {% else %}
-          <p class="text-muted small">No status updates yet.</p>
+          <p class="text-muted" style="font-size:.8125rem;">No status updates yet.</p>
           {% endif %}
 
           {% if order.status == 'placed' %}
-          <div class="alert alert-warning small mt-3 mb-0">
-            <i class="bi bi-hourglass me-1"></i>Waiting for tailor to accept your order.
-          </div>
+          <div class="status-notice sn-waiting"><i class="bi bi-hourglass"></i>Waiting for tailor to accept.</div>
           {% elif order.status == 'accepted' %}
-          <div class="alert alert-info small mt-3 mb-0">
-            <i class="bi bi-truck me-1"></i>A delivery agent will contact you to pick up your fabric.
-          </div>
+          <div class="status-notice sn-pickup"><i class="bi bi-truck"></i>Agent will contact you for fabric pickup.</div>
           {% elif order.status == 'stitching' %}
-          <div class="alert alert-secondary small mt-3 mb-0">
-            <i class="bi bi-scissors me-1"></i>Your clothes are being stitched. We'll notify you when ready.
-          </div>
+          <div class="status-notice sn-stitching"><i class="bi bi-scissors"></i>Your clothes are being stitched.</div>
           {% elif order.status == 'ready' %}
-          <div class="alert alert-success small mt-3 mb-0">
-            <i class="bi bi-bag-check me-1"></i>Your clothes are ready! A delivery agent will bring them soon.
-          </div>
+          <div class="status-notice sn-ready"><i class="bi bi-bag-check"></i>Ready! Delivery agent will bring them soon.</div>
           {% elif order.status == 'out_for_delivery' %}
-          <div class="alert alert-info small mt-3 mb-0">
-            <i class="bi bi-truck me-1"></i>Your order is out for delivery — almost there!
-          </div>
+          <div class="status-notice sn-delivery"><i class="bi bi-truck"></i>Out for delivery — almost there!</div>
           {% elif order.status == 'delivered' %}
-          <div class="alert alert-success small mt-3 mb-0">
-            <i class="bi bi-check2-circle me-1"></i>Delivered! We hope you love your clothes.
-          </div>
+          <div class="status-notice sn-done"><i class="bi bi-check2-circle"></i>Delivered! We hope you love your clothes.</div>
           {% endif %}
         </div>
       </div>
     </div>
+
   </div>
 </div>
 {% endblock %}
@@ -366,10 +512,8 @@ if (chatEl) {
   var lastId = 0;
   var allMsgs = chatEl.querySelectorAll('[data-msg-id]');
   if (allMsgs.length) lastId = parseInt(allMsgs[allMsgs.length-1].dataset.msgId) || 0;
-
   function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
   scrollBottom();
-
   function pollMessages() {
     fetch('{{ url_for("customer.messages_api", order_id=order.id) }}?since=' + lastId, {credentials:'same-origin'})
       .then(function(r) { return r.ok ? r.json() : []; })
@@ -377,15 +521,14 @@ if (chatEl) {
         msgs.forEach(function(m) {
           if (m.id > lastId) {
             lastId = m.id;
-            var align = m.is_mine ? 'justify-content-end' : '';
-            var style = m.is_mine ? 'background:#6f42c1;color:#fff;' : 'background:#f8f9fa;';
-            var senderLine = m.is_mine ? '' : '<div style="font-size:.7rem;font-weight:600;margin-bottom:2px;">' + m.sender + '</div>';
-            var html = '<div class="d-flex ' + align + ' mb-2" data-msg-id="' + m.id + '">'
-              + '<div class="rounded-3 px-3 py-2 shadow-sm" style="max-width:75%;' + style + '">'
+            var cls = m.is_mine ? 'msg-mine' : 'msg-other';
+            var senderLine = m.is_mine ? '' : '<div style="font-size:.65rem;color:#94a3b8;margin-bottom:.2rem;font-weight:600;">' + m.sender + '</div>';
+            var bubbleStyle = m.is_mine ? '' : '';
+            var html = '<div class="' + cls + '" data-msg-id="' + m.id + '">'
               + senderLine
-              + '<div class="small">' + m.content + '</div>'
-              + '<div style="font-size:.65rem;opacity:.7;margin-top:2px;text-align:right;">' + m.time + '</div>'
-              + '</div></div>';
+              + '<div class="msg-bubble">' + m.content + '</div>'
+              + '<div class="msg-meta">' + m.time + '</div>'
+              + '</div>';
             chatEl.insertAdjacentHTML('beforeend', html);
             scrollBottom();
           }

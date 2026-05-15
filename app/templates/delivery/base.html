@@ -9,7 +9,7 @@
   </button>
   <a href="{{ url_for('customer.home') }}" class="text-decoration-none d-flex align-items-center gap-2">
     <span class="brand-name"><i class="bi bi-scissors me-1 text-brand-orange"></i>TailorApp</span>
-    <span class="badge bg-brand-orange portal-badge">Delivery</span>
+    <span class="badge bg-brand-orange portal-badge">Style Agent</span>
   </a>
 </div>
 
@@ -24,7 +24,7 @@
       <span style="font-size:1.25rem;font-weight:800;">
         <i class="bi bi-scissors me-2 text-brand-orange"></i>TailorApp
       </span>
-      <div class="badge bg-brand-orange mt-1">Delivery Portal</div>
+      <div class="badge bg-brand-orange mt-1">Style Agent Portal</div>
     </a>
 
     <ul class="nav flex-column gap-1 flex-grow-1">
@@ -32,15 +32,29 @@
              class="nav-link {% if request.endpoint=='delivery.dashboard' %}active{% endif %}">
         <i class="bi bi-speedometer2"></i>Dashboard
       </a></li>
+
+      <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">Appointments</li>
+      <li><a href="{{ url_for('delivery.my_appointments') }}"
+             class="nav-link {% if 'delivery.appointment' in request.endpoint %}active{% endif %}">
+        <i class="bi bi-calendar-check"></i>My Appointments
+      </a></li>
+      <li><a href="{{ url_for('delivery.my_appointments', status='agent_assigned') }}" class="nav-link">
+        <i class="bi bi-hourglass-split"></i>Upcoming
+      </a></li>
+      <li><a href="{{ url_for('delivery.my_appointments', status='completed') }}" class="nav-link">
+        <i class="bi bi-check2-circle"></i>Completed
+      </a></li>
+
+      <li class="mt-2 px-2" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:#b0a9d4;">Deliveries</li>
       <li><a href="{{ url_for('delivery.assignments') }}"
-             class="nav-link {% if 'delivery.assignment' in request.endpoint %}active{% endif %}">
+             class="nav-link {% if 'delivery.assignment' in request.endpoint and 'appointment' not in request.endpoint %}active{% endif %}">
         <i class="bi bi-truck"></i>My Assignments
       </a></li>
       <li><a href="{{ url_for('delivery.assignments', status='assigned') }}" class="nav-link">
         <i class="bi bi-hourglass-split"></i>Pending
       </a></li>
       <li><a href="{{ url_for('delivery.assignments', status='delivered') }}" class="nav-link">
-        <i class="bi bi-check2-circle"></i>Completed
+        <i class="bi bi-check2-circle"></i>Delivered
       </a></li>
     </ul>
 

@@ -1,0 +1,106 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="mb-4">
+  <a href="{{ url_for('admin.catalogue') }}" class="text-decoration-none text-muted small">
+    <i class="bi bi-arrow-left me-1"></i>Back to Catalogue
+  </a>
+  <h4 class="fw-bold mt-2">
+    {{ 'Edit Sub-Design' if product_design else 'Add New Sub-Design' }}
+  </h4>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Category (Level 1) <span class="text-danger">*</span></label>
+            <select name="design_id" class="form-select" required>
+              <option value="">— Select Category —</option>
+              {% for cat in categories %}
+              <option value="{{ cat.id }}"
+                {% if product_design and product_design.design_id == cat.id %}selected{% endif %}>
+                {{ cat.name }} (Base ₹{{ cat.base_price|int }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Sub-Design Name <span class="text-danger">*</span></label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ product_design.name if product_design else '' }}"
+                   placeholder="e.g. Round Neck Blouse, V-Neck Blouse, Bridal Blouse">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description</label>
+            <textarea name="description" class="form-control" rows="3"
+                      placeholder="Short description for customers...">{{ product_design.description if product_design else '' }}</textarea>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Price Modifier (₹)</label>
+              <input type="number" name="base_price_modifier" class="form-control" step="0.01"
+                     value="{{ product_design.base_price_modifier if product_design else 0 }}"
+                     placeholder="0 = same as category base">
+              <div class="form-text">+ve adds to base price, -ve reduces it.</div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold">Display Order</label>
+              <input type="number" name="display_order" class="form-control"
+                     value="{{ product_design.display_order if product_design else 0 }}"
+                     min="0">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Fabric Suggestions</label>
+            <input type="text" name="fabric_suggestions" class="form-control"
+                   value="{{ product_design.get_fabric_suggestions()|join(', ') if product_design else '' }}"
+                   placeholder="Silk, Cotton, Georgette, Velvet (comma-separated)">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Main Image</label>
+            {% if product_design and product_design.main_image() %}
+            <div class="mb-2">
+              <img src="{{ product_design.main_image().url() }}"
+                   class="rounded" style="height:80px;width:80px;object-fit:cover;" alt="">
+              <span class="text-muted small ms-2">Current image</span>
+            </div>
+            {% endif %}
+            <input type="file" name="main_image" class="form-control" accept="image/*">
+            <div class="form-text">PNG/JPG/WebP, max 4 MB. Recommended: 600×600px.</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-brand-purple px-4">
+              <i class="bi bi-check-lg me-1"></i>{{ 'Save Changes' if product_design else 'Create Sub-Design' }}
+            </button>
+            <a href="{{ url_for('admin.catalogue') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm bg-light">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2 text-brand-purple"></i>How the Catalogue Works</h6>
+        <ul class="small text-muted ps-3">
+          <li class="mb-2"><strong>Level 1 (Category)</strong> — Blouse, Shirt, Lehenga, etc. Managed under Base Designs.</li>
+          <li class="mb-2"><strong>Level 2 (Sub-Design)</strong> — What you create here. e.g. "Round Neck Blouse" under Blouse.</li>
+          <li class="mb-2"><strong>Level 3 (Variants)</strong> — Sleeve style, neck depth, etc. Added after saving this sub-design.</li>
+          <li><strong>Tailor Mapping</strong> — After saving, assign which tailors can stitch this design + their pricing.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

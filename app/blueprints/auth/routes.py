@@ -19,6 +19,15 @@ def _redirect_by_role(user):
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
+        # If a customer with profiles visits the login page while already logged in,
+        # treat it as "wants to switch" → clear and show the profile selector.
+        if current_user.role == 'customer':
+            has_profiles = FamilyProfile.query.filter_by(
+                user_id=current_user.id).count() > 0
+            if has_profiles:
+                session.pop('active_profile_id', None)
+                return redirect(url_for('customer.select_profile',
+                                        next=request.args.get('next', url_for('customer.home'))))
         return _redirect_by_role(current_user)
 
     if request.method == 'POST':
@@ -38,15 +47,19 @@ def login():
                 flash('Your registration was not approved. Contact support for assistance.', 'danger')
                 return render_template('auth/login.html', title='Sign In')
             login_user(user, remember=remember)
-            next_page = request.args.get('next')
             flash(f'Welcome back, {user.name}!', 'success')
-            if next_page:
-                return redirect(next_page)
-            # Redirect customer to profile selector if they have family profiles
+            # Profile selector must come BEFORE next_page redirect so it's never skipped
             if user.role == 'customer':
                 profile_count = FamilyProfile.query.filter_by(user_id=user.id).count()
-                if profile_count > 0 and 'active_profile_id' not in session:
-                    return redirect(url_for('customer.select_profile'))
+                if profile_count > 0:
+                    session.pop('active_profile_id', None)  # force fresh choice every login
+                    # Preserve the original next destination so after picking a profile
+                    # the user lands where they intended
+                    intended = request.args.get('next') or url_for('customer.home')
+                    return redirect(url_for('customer.select_profile', next=intended))
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
             return _redirect_by_role(user)
 
         flash('Invalid email or password.', 'danger')

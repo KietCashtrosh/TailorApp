@@ -1,0 +1,168 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<div class="mb-4">
+  <h4 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-brand-purple"></i>Style Agent Schedule Config</h4>
+  <p class="text-muted small">Configure available working hours and slot durations shown to customers when booking.</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    {% if configs %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold py-3">Existing Configurations</div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Hours</th>
+              <th>Slot</th>
+              <th>Slots/Day</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cfg in configs %}
+            <tr>
+              <td class="fw-semibold">{{ cfg.config_name }}</td>
+              <td>{{ '%02d:00'|format(cfg.start_hour) }} – {{ '%02d:00'|format(cfg.end_hour) }}</td>
+              <td>{{ cfg.slot_duration_minutes }} min</td>
+              <td>{{ cfg.generate_slots()|length }} slots</td>
+              <td>
+                {% if cfg.is_active %}
+                  <span class="badge bg-success">Active</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.schedule_config_delete', cfg_id=cfg.id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger border-0"
+                          onclick="return confirm('Delete this config?')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            <!-- Slot preview row -->
+            <tr class="table-light">
+              <td colspan="6" class="py-2 ps-4">
+                <span class="text-muted small me-2">Slots generated:</span>
+                {% for slot in cfg.generate_slots() %}
+                  <span class="badge bg-light text-dark border me-1">{{ slot }}</span>
+                {% endfor %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Add / Edit form -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-bold py-3">Add New Schedule</div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('admin.schedule_config_save') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="config_id" value="">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Configuration Name</label>
+            <input type="text" name="config_name" class="form-control" required
+                   placeholder="e.g. Standard Hours (10 AM – 6 PM)">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold">Start Hour</label>
+              <select name="start_hour" class="form-select" id="startHour" onchange="previewSlots()">
+                {% for h in range(6, 21) %}
+                <option value="{{ h }}" {% if h == 10 %}selected{% endif %}>
+                  {{ '%02d:00'|format(h) }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold">End Hour</label>
+              <select name="end_hour" class="form-select" id="endHour" onchange="previewSlots()">
+                {% for h in range(7, 22) %}
+                <option value="{{ h }}" {% if h == 18 %}selected{% endif %}>
+                  {{ '%02d:00'|format(h) }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold">Slot Duration</label>
+              <select name="slot_duration_minutes" class="form-select" id="slotDur" onchange="previewSlots()">
+                <option value="30" selected>30 minutes</option>
+                <option value="60">60 minutes</option>
+                <option value="15">15 minutes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_active" id="cfgActive" checked>
+              <label class="form-check-label" for="cfgActive">Active (customers can book in these slots)</label>
+            </div>
+          </div>
+
+          <div class="mb-3 p-3 bg-light rounded-3" id="slotPreview">
+            <div class="small text-muted mb-1">Slot preview:</div>
+            <div id="slotBadges"></div>
+          </div>
+
+          <button type="submit" class="btn btn-brand-purple">
+            <i class="bi bi-plus-lg me-1"></i>Save Configuration
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm bg-light">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2 text-brand-purple"></i>How Schedules Work</h6>
+        <ul class="small text-muted ps-3">
+          <li class="mb-2">Only <strong>active</strong> configs are shown to customers when booking.</li>
+          <li class="mb-2">The system uses the <strong>active config with the widest hours</strong> by default.</li>
+          <li class="mb-2">You can have different configs for different seasons (e.g., "Festive Early Birds 6–10 AM").</li>
+          <li>Slots are generated automatically — no manual slot creation needed.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+function previewSlots() {
+  const start = parseInt(document.getElementById('startHour').value);
+  const end = parseInt(document.getElementById('endHour').value);
+  const dur = parseInt(document.getElementById('slotDur').value);
+  const container = document.getElementById('slotBadges');
+  container.innerHTML = '';
+  if (end <= start) { container.innerHTML = '<span class="text-danger small">End must be after start.</span>'; return; }
+  let cur = start * 60;
+  const endMin = end * 60;
+  while (cur < endMin) {
+    const h = Math.floor(cur / 60);
+    const m = cur % 60;
+    const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    container.innerHTML += `<span class="badge bg-light text-dark border me-1 mb-1">${label}</span>`;
+    cur += dur;
+  }
+}
+previewSlots();
+</script>
+{% endblock %}
+{% endblock %}

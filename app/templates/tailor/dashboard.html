@@ -76,7 +76,7 @@
         <tr>
           <td><code class="small">{{ o.order_number }}</code></td>
           <td>{{ o.customer.name }}</td>
-          <td>{{ o.design.name }}</td>
+          <td>{{ o.display_design_name() }}</td>
           <td><span class="badge bg-{{ o.status_badge() }}">{{ o.status_label() }}</span></td>
           <td class="text-muted small">{{ o.created_at.strftime('%d %b') }}</td>
           <td><a href="{{ url_for('tailor.order_detail', order_id=o.id) }}"

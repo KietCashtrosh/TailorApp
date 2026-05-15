@@ -26,7 +26,7 @@
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Design</div>
-            <div class="fw-semibold">{{ order.design.name }}</div>
+            <div class="fw-semibold">{{ order.display_design_name() }}</div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Estimated Price</div>
@@ -59,6 +59,39 @@
         </div>
       </div>
     </div>
+
+    <!-- Style Agent Assignment (Phase 1) -->
+    {% if order.status == 'accepted' %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold py-3 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-person-badge me-2 text-brand-orange"></i>Style Agent</span>
+        {% if order.auto_assigned_style_agent_id %}
+        <span class="badge bg-{% if order.customer_confirmed_slot %}success{% else %}warning{% endif %}">
+          {{ 'Confirmed' if order.customer_confirmed_slot else 'Pending Confirmation' }}
+        </span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if order.auto_assigned_style_agent_id %}
+        <div class="alert alert-info border-0 p-3 mb-3">
+          <strong>{{ order.style_agent.name }}</strong> is assigned as the Style Agent.
+          <br><small class="text-muted">Assigned: {{ order.admin_assigned_at.strftime('%d %b %Y, %H:%M') }}</small>
+        </div>
+        {% elif order.style_agent_appointment_date %}
+        <div class="alert alert-success border-0 p-3 mb-3">
+          <i class="bi bi-check-circle me-2"></i>Customer selected slot: <strong>{{ order.style_agent_appointment_date }} @ {{ order.style_agent_appointment_time }}</strong>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">No style agent assigned or slot selected.</p>
+        <div class="mt-3">
+          <a href="{{ url_for('admin.assign_style_agent', order_id=order.id) }}" class="btn btn-sm btn-brand-orange">
+            <i class="bi bi-person-plus me-1"></i>Assign Style Agent
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Delivery Assignments -->
     <div class="card border-0 shadow-sm mb-4">

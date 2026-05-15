@@ -1,0 +1,446 @@
+{% extends "base.html" %}
+{% block title %}{{ design.name }} — Browse & Order{% endblock %}
+
+{% block extra_head %}
+<style>
+body { background: #f8fafc; }
+
+/* ── Hero ── */
+.showcase-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #312e81 100%);
+  position: relative; overflow: hidden;
+}
+.showcase-hero::after {
+  content: ''; position: absolute; top: -25%; right: -5%;
+  width: 360px; height: 360px;
+  background: radial-gradient(circle, rgba(225,29,72,.18) 0%, transparent 65%);
+  border-radius: 50%; pointer-events: none;
+}
+.hero-body { position: relative; z-index: 1; padding: 2.25rem 0 2.5rem; }
+
+.design-emoji {
+  font-size: 4.5rem; line-height: 1;
+  filter: drop-shadow(0 12px 28px rgba(0,0,0,.4));
+  animation: floatEmoji 6s ease-in-out infinite;
+}
+@keyframes floatEmoji {
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-8px);}
+}
+.design-title {
+  font-size: clamp(1.8rem, 4vw, 2.75rem);
+  font-weight: 800; color: #fff; letter-spacing: -.03em; line-height: 1.1;
+}
+.price-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+  color: #fff; font-size: .85rem; font-weight: 600;
+  padding: 5px 14px; border-radius: 50rem; backdrop-filter: blur(8px);
+}
+.tailor-count-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(16,185,129,.2); border: 1px solid rgba(16,185,129,.35);
+  color: #a7f3d0; font-size: .78rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 50rem;
+}
+
+/* ── Variants section ── */
+.variants-card {
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(15,23,42,.07);
+  border: 1.5px solid #e2e8f0;
+}
+.variants-title {
+  font-size: .7rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: #94a3b8;
+}
+.v-btn {
+  font-size: .78rem; padding: .3rem .9rem;
+  border-radius: 50rem; font-weight: 500;
+  border: 1.5px solid #e2e8f0; background: #fff; color: #475569;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.v-btn:hover { border-color: #c7d2fe; color: #4f46e5; background: #eef2ff; }
+.v-btn.selected {
+  background: #4f46e5; color: #fff; border-color: #4f46e5;
+  box-shadow: 0 2px 8px rgba(79,70,229,.35);
+}
+
+/* ── Tailor cards ── */
+.tailor-card {
+  background: #fff; border-radius: 16px;
+  border: 1.5px solid #e2e8f0;
+  transition: all .2s; overflow: hidden;
+}
+.tailor-card:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 10px 28px rgba(79,70,229,.12);
+  transform: translateY(-3px);
+}
+.tc-avatar {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; font-weight: 800; color: #fff; flex-shrink: 0;
+  background: linear-gradient(135deg, #e11d48, #f97316);
+}
+.tc-name { font-weight: 700; font-size: .9375rem; color: #0f172a; }
+.tc-location { font-size: .78rem; color: #64748b; }
+.tc-price { font-size: 1.35rem; font-weight: 800; color: #4f46e5; }
+.tc-price-orig { text-decoration: line-through; color: #94a3b8; font-size: .78rem; font-weight: 400; }
+.tc-rating {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #059669; color: #fff; font-size: .72rem;
+  font-weight: 700; padding: 2px 7px; border-radius: 5px;
+}
+.tc-badge {
+  font-size: .68rem; font-weight: 600; padding: 2px 8px; border-radius: 50rem;
+}
+.order-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: #4f46e5; color: #fff;
+  border-radius: 10px; padding: .55rem 1.1rem;
+  font-weight: 600; font-size: .85rem; text-decoration: none;
+  transition: all .15s; white-space: nowrap; border: none;
+}
+.order-btn:hover { background: #4338ca; color: #fff; transform: translateY(-1px); }
+
+/* Sticky variant bar (when scrolled past hero) */
+.sticky-config {
+  position: sticky; top: 64px; z-index: 80;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  display: none;
+}
+.sticky-config.show { display: block; }
+
+/* ── Sort bar ── */
+.sort-btn {
+  font-size: .78rem; font-weight: 600; padding: .3rem .85rem;
+  border-radius: 50rem; cursor: pointer; white-space: nowrap;
+  border: 1.5px solid #e2e8f0; background: #fff; color: #475569;
+  transition: all .15s;
+}
+.sort-btn:hover, .sort-btn.active { border-color: #4f46e5; color: #4f46e5; background: #eef2ff; }
+
+/* Selected summary chip */
+.variant-summary {
+  font-size: .75rem; color: #64748b;
+  display: none;
+}
+.variant-summary.show { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set emoji_map = {
+  'Blouse': '🪡', 'Saree Blouse': '🧵', 'Lehenga': '👗',
+  'Shirt': '👔', 'Trouser': '👖', 'Salwar Suit': '🥻',
+  'Kurti': '🎨', 'Skirt': '👘', 'Dress/Frock': '🌸',
+  'Jacket/Blazer': '🧥', 'Ethnic/Indo-Western': '✨'
+} %}
+
+<!-- ═══ HERO ═══ -->
+<div class="showcase-hero">
+  <div class="container hero-body">
+    <a href="{{ url_for('customer.home') }}"
+       class="d-inline-flex align-items-center gap-1 text-decoration-none mb-4"
+       style="color:rgba(255,255,255,.55);font-size:.82rem;font-weight:500;">
+      <i class="bi bi-arrow-left"></i> All Categories
+    </a>
+
+    <div class="row align-items-center g-4">
+      <div class="col-auto">
+        <div class="design-emoji">{{ emoji_map.get(design.name, '✂️') }}</div>
+      </div>
+      <div class="col">
+        <h1 class="design-title mb-2">{{ design.name }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+          <span class="price-pill">
+            <i class="bi bi-tag-fill" style="font-size:.75rem;color:#fbbf24;"></i>
+            From ₹{{ design.base_price|int }}
+          </span>
+          {% if tailor_data %}
+          <span class="tailor-count-pill">
+            <i class="bi bi-scissors" style="font-size:.75rem;"></i>
+            {{ tailor_data|length }} tailor{{ 's' if tailor_data|length != 1 else '' }} available
+          </span>
+          {% endif %}
+        </div>
+        {% if design.description %}
+        <p style="color:rgba(255,255,255,.6);font-size:.875rem;max-width:520px;line-height:1.7;margin:0;">
+          {{ design.description }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VARIANT PICKER ═══ -->
+{% if design_options %}
+<div class="container py-4" id="variantSection">
+  <div class="variants-card p-4">
+    <div class="d-flex align-items-center gap-2 mb-4">
+      <i class="bi bi-sliders text-brand-purple fs-5"></i>
+      <div>
+        <h5 class="fw-bold mb-0" style="color:#0f172a;">Customise Your Order</h5>
+        <div class="text-muted small">Choose your style preferences — we'll show matching tailors</div>
+      </div>
+      <div class="ms-auto">
+        <button onclick="clearAllVariants()" class="btn btn-sm btn-outline-secondary rounded-pill" style="font-size:.75rem;">
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-4" id="variantPicker">
+      {% for grp in design_options %}
+      <div class="col-12 col-md-6">
+        <div class="variants-title mb-2">{{ grp.group }}</div>
+        <div class="d-flex flex-wrap gap-2" data-group="{{ grp.group }}">
+          {% for opt in grp.options %}
+          <button type="button" class="v-btn"
+                  data-group="{{ grp.group }}" data-value="{{ opt }}"
+                  onclick="toggleVariant(this)">
+            {{ opt }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Selected summary -->
+    <div id="variantSummary" class="variant-summary mt-3 pt-3"
+         style="border-top:1px solid #f1f5f9;">
+      <i class="bi bi-check-circle-fill text-success me-1"></i>
+      <span id="summaryText"></span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ TAILORS SECTION ═══ -->
+<div class="container pb-5">
+  <!-- Section header -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+      <h4 class="fw-bold mb-1" style="color:#0f172a;">
+        <i class="bi bi-scissors me-2 text-brand-purple"></i>
+        Choose Your Tailor
+        {% if tailor_data %}
+        <span class="badge bg-light text-muted border ms-2" style="font-size:.7rem;font-weight:500;">{{ tailor_data|length }}</span>
+        {% endif %}
+      </h4>
+      <p class="text-muted small mb-0">Prices shown for {{ design.name }} · Click "Order Now" to continue</p>
+    </div>
+    <!-- Sort -->
+    <div class="d-flex gap-2 flex-wrap" id="sortBar">
+      <button class="sort-btn active" data-sort="rating" onclick="sortTailors(this,'rating')">
+        <i class="bi bi-star-fill me-1" style="color:#f59e0b;font-size:.7rem;"></i>Top Rated
+      </button>
+      <button class="sort-btn" data-sort="price_asc" onclick="sortTailors(this,'price_asc')">
+        <i class="bi bi-arrow-up me-1"></i>Price ↑
+      </button>
+      <button class="sort-btn" data-sort="price_desc" onclick="sortTailors(this,'price_desc')">
+        <i class="bi bi-arrow-down me-1"></i>Price ↓
+      </button>
+      <button class="sort-btn" data-sort="exp" onclick="sortTailors(this,'exp')">
+        <i class="bi bi-award me-1"></i>Experience
+      </button>
+    </div>
+  </div>
+
+  {% if tailor_data %}
+  <div class="row g-3" id="tailorsGrid">
+    {% for td in tailor_data %}
+    {% set t = td.tailor %}
+    <div class="col-12 col-sm-6 col-xl-4 tailor-col"
+         data-rating="{{ t.rating }}"
+         data-price="{{ td.price }}"
+         data-exp="{{ t.experience_years }}">
+      <div class="tailor-card h-100">
+        <!-- Top accent bar -->
+        <div style="height:4px;background:linear-gradient(90deg,#4f46e5,#e11d48);"></div>
+        <div class="p-4">
+          <!-- Header row -->
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="tc-avatar">{{ t.shop_name[0].upper() }}</div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="tc-name text-truncate">{{ t.shop_name }}</div>
+              <div class="tc-location text-truncate mt-1">
+                <i class="bi bi-geo-alt me-1"></i>
+                {% if t.address %}{{ t.address[:38] }}{% if t.address|length > 38 %}…{% endif %}{% else %}Location not set{% endif %}
+              </div>
+              <!-- Rating + experience -->
+              <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
+                {% if t.rating_count > 0 %}
+                <span class="tc-rating">
+                  <i class="bi bi-star-fill" style="font-size:.6rem;"></i>
+                  {{ '%.1f'|format(t.rating) }}
+                </span>
+                <span class="text-muted" style="font-size:.72rem;">({{ t.rating_count }} reviews)</span>
+                {% else %}
+                <span class="text-muted" style="font-size:.72rem;">New tailor</span>
+                {% endif %}
+                {% if t.experience_years > 0 %}
+                <span class="tc-badge bg-light text-muted border">
+                  <i class="bi bi-briefcase me-1" style="font-size:.6rem;"></i>{{ t.experience_years }} yrs
+                </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Specialisations -->
+          {% set specs = t.get_specializations() %}
+          {% if specs %}
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            {% for s in specs[:4] %}
+            <span class="tc-badge bg-light text-muted border" style="font-size:.65rem;">{{ s }}</span>
+            {% endfor %}
+            {% if specs|length > 4 %}
+            <span class="tc-badge bg-light text-muted border" style="font-size:.65rem;">+{{ specs|length - 4 }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          <!-- Price row -->
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <div class="text-muted" style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Price for {{ design.name }}</div>
+              <div class="d-flex align-items-baseline gap-2">
+                <span class="tc-price">₹{{ td.price|int }}</span>
+                {% if td.original_price %}
+                <span class="tc-price-orig">₹{{ td.original_price|int }}</span>
+                <span class="tc-badge text-white fw-semibold" style="background:#059669;font-size:.65rem;">OFFER</span>
+                {% endif %}
+              </div>
+            </div>
+            {% if t.is_available %}
+            <span class="tc-badge" style="background:#dcfce7;color:#166534;">Available</span>
+            {% endif %}
+          </div>
+
+          <!-- CTA button -->
+          <a href="{{ url_for('customer.cart_add', tailor_id=t.id, design_id=design.id) }}"
+             class="order-btn w-100 order-link"
+             data-base="{{ url_for('customer.cart_add', tailor_id=t.id, design_id=design.id) }}">
+            <i class="bi bi-cart-plus"></i>
+            Order with {{ t.shop_name.split()[0] }}
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="text-center py-5">
+    <div style="font-size:3.5rem;margin-bottom:1rem;opacity:.4;">🔍</div>
+    <h5 class="fw-bold text-muted">No tailors available yet</h5>
+    <p class="text-muted small mb-4">No tailors currently specialise in {{ design.name }}.<br>Try browsing all tailors or check back soon.</p>
+    <a href="{{ url_for('customer.tailors') }}" class="btn btn-brand-purple rounded-pill px-4">
+      <i class="bi bi-search me-2"></i>Browse All Tailors
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ BOTTOM CTA ═══ -->
+<div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:3rem 0;">
+  <div class="container text-center">
+    <div style="font-size:2rem;margin-bottom:.75rem;">📐</div>
+    <h5 class="fw-bold text-white mb-2">Not sure about measurements?</h5>
+    <p style="color:rgba(255,255,255,.55);font-size:.875rem;margin-bottom:1.5rem;">
+      Book a Style Agent — we visit your home and take professional measurements
+    </p>
+    <a href="{{ url_for('customer.book_appointment') }}" class="btn btn-light rounded-pill px-4 fw-semibold">
+      <i class="bi bi-calendar-plus me-2"></i>Book Style Agent
+    </a>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Variant state ──────────────────────────────
+const selectedVariants = {};
+
+function toggleVariant(btn) {
+  const group = btn.dataset.group;
+  const value = btn.dataset.value;
+  const container = btn.closest('[data-group]');
+  const isAlreadySelected = btn.classList.contains('selected');
+
+  // Deselect all in group
+  container.querySelectorAll('.v-btn').forEach(b => b.classList.remove('selected'));
+
+  if (isAlreadySelected) {
+    // Toggle off
+    delete selectedVariants[group];
+  } else {
+    btn.classList.add('selected');
+    selectedVariants[group] = value;
+  }
+
+  updateOrderLinks();
+  updateSummary();
+}
+
+function clearAllVariants() {
+  document.querySelectorAll('.v-btn.selected').forEach(b => b.classList.remove('selected'));
+  Object.keys(selectedVariants).forEach(k => delete selectedVariants[k]);
+  updateOrderLinks();
+  updateSummary();
+}
+
+function updateOrderLinks() {
+  document.querySelectorAll('.order-link').forEach(link => {
+    let url = link.dataset.base;
+    const params = new URLSearchParams();
+    for (const [g, v] of Object.entries(selectedVariants)) {
+      params.set(`v_${g}`, v);
+    }
+    const qs = params.toString();
+    link.href = qs ? url + '&' + qs : url;
+  });
+}
+
+function updateSummary() {
+  const keys = Object.keys(selectedVariants);
+  const summary = document.getElementById('variantSummary');
+  const text = document.getElementById('summaryText');
+  if (keys.length === 0) {
+    summary.classList.remove('show');
+    return;
+  }
+  summary.classList.add('show');
+  text.textContent = keys.map(k => `${k}: ${selectedVariants[k]}`).join('  ·  ');
+}
+
+// ── Sort ──────────────────────────────────────
+function sortTailors(btn, mode) {
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const grid = document.getElementById('tailorsGrid');
+  const cols = Array.from(grid.querySelectorAll('.tailor-col'));
+
+  cols.sort((a, b) => {
+    if (mode === 'rating')    return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
+    if (mode === 'price_asc') return parseFloat(a.dataset.price)  - parseFloat(b.dataset.price);
+    if (mode === 'price_desc') return parseFloat(b.dataset.price) - parseFloat(a.dataset.price);
+    if (mode === 'exp')       return parseInt(b.dataset.exp)      - parseInt(a.dataset.exp);
+    return 0;
+  });
+
+  cols.forEach(col => grid.appendChild(col));
+}
+</script>
+{% endblock %}

@@ -3,133 +3,213 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}{{ title or 'TailorApp' }}{% endblock %} — TailorApp</title>
+  <title>{% block title %}TailorApp{% endblock %} — TailorApp</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://unpkg.com/htmx.org@1.9.10" defer></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 {% block body %}
 
-<nav class="navbar navbar-expand-lg navbar-dark navbar-custom shadow-sm sticky-top">
+<!-- ═══════════ NAVBAR ═══════════ -->
+<nav class="navbar navbar-expand-lg navbar-custom sticky-top">
   <div class="container-fluid px-3 px-md-4">
-    <a class="navbar-brand text-white" href="{{ url_for('customer.home') }}">
-      <i class="bi bi-scissors me-1"></i>Tailor<span>App</span>
+
+    <!-- Brand -->
+    <a class="navbar-brand" href="{{ url_for('customer.home') }}">
+      <i class="bi bi-scissors"></i>Tailor<span>App</span>
     </a>
-    <div class="d-flex align-items-center gap-2 d-lg-none">
+
+    <!-- Mobile: action icons + toggler -->
+    <div class="d-flex align-items-center gap-1 d-lg-none ms-auto">
       {% if current_user.is_authenticated %}
-        {# Mobile: bell icon before toggler #}
         {% if current_user.role == 'tailor' %}{% set notif_url = url_for('tailor.my_notifications') %}
         {% elif current_user.role == 'admin' %}{% set notif_url = url_for('admin.my_notifications') %}
         {% elif current_user.role == 'delivery' %}{% set notif_url = url_for('delivery.dashboard') %}
         {% else %}{% set notif_url = url_for('customer.my_notifications') %}{% endif %}
-        <a class="nav-link text-white position-relative px-1" href="{{ notif_url }}">
-          <i class="bi bi-bell fs-5"></i>
-          <span class="nav-notif-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.55rem;{% if not unread_notif_count or unread_notif_count == 0 %}display:none;{% endif %}">{{ unread_notif_count or '' }}</span>
+
+        <a class="nav-link position-relative px-2" href="{{ notif_url }}">
+          <i class="bi bi-bell fs-5" style="color:var(--gray-700);"></i>
+          <span class="nav-notif-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style="{% if not unread_notif_count or unread_notif_count == 0 %}display:none;{% endif %}">
+            {{ unread_notif_count or '' }}
+          </span>
         </a>
+
+        {% if current_user.role == 'customer' %}
+        <a class="nav-link position-relative px-2" href="{{ url_for('customer.cart') }}">
+          <i class="bi bi-bag fs-5" style="color:var(--gray-700);"></i>
+          <span class="nav-cart-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style="{% if not cart_count or cart_count == 0 %}display:none;{% endif %}">
+            {{ cart_count or '' }}
+          </span>
+        </a>
+        {% endif %}
       {% endif %}
-      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" style="border:none;">
         <span class="navbar-toggler-icon"></span>
       </button>
     </div>
 
+    <!-- Desktop nav -->
     <div class="collapse navbar-collapse" id="navMenu">
-      <ul class="navbar-nav ms-auto align-items-lg-center gap-1">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-0">
         {% if current_user.is_authenticated %}
+
           {% if current_user.role == 'admin' %}
-            <li class="nav-item">
-              <a class="nav-link text-white-50" href="{{ url_for('admin.dashboard') }}">
-                <i class="bi bi-speedometer2 me-1"></i>Admin Panel
-              </a>
-            </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+              <i class="bi bi-speedometer2 me-1"></i>Admin Panel
+            </a>
+          </li>
+
           {% elif current_user.role == 'tailor' %}
-            <li class="nav-item">
-              <a class="nav-link text-white-50" href="{{ url_for('tailor.dashboard') }}">
-                <i class="bi bi-speedometer2 me-1"></i>My Dashboard
-              </a>
-            </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('tailor.dashboard') }}">
+              <i class="bi bi-speedometer2 me-1"></i>Dashboard
+            </a>
+          </li>
+
           {% elif current_user.role == 'delivery' %}
-            <li class="nav-item">
-              <a class="nav-link text-white-50" href="{{ url_for('delivery.dashboard') }}">
-                <i class="bi bi-truck me-1"></i>My Assignments
-              </a>
-            </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('delivery.my_appointments') }}">
+              <i class="bi bi-calendar-check me-1"></i>Appointments
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('delivery.dashboard') }}">
+              <i class="bi bi-truck me-1"></i>Deliveries
+            </a>
+          </li>
+
           {% else %}
-            <li class="nav-item">
-              <a class="nav-link text-white-50" href="{{ url_for('customer.tailors') }}">
-                <i class="bi bi-search me-1 d-lg-none"></i>Find Tailors
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white-50" href="{{ url_for('customer.my_orders') }}">
-                <i class="bi bi-receipt me-1 d-lg-none"></i>My Orders
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link text-white position-relative" href="{{ url_for('customer.cart') }}">
-                <i class="bi bi-cart3 fs-5"></i>
-                <span class="nav-cart-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;{% if not cart_count or cart_count == 0 %}display:none;{% endif %}">{{ cart_count or '' }}</span>
-                <span class="d-lg-none ms-2">Cart</span>
-              </a>
-            </li>
+          <!-- Customer nav links -->
+          <li class="nav-item">
+            <a class="nav-link {% if 'customer.catalogue' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('customer.catalogue') }}">Catalogue</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('customer.tailors') }}">Find Tailors</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('customer.my_orders') }}">My Orders</a>
+          </li>
           {% endif %}
 
-          {# Bell — desktop only (mobile version is above the toggler) #}
+          <!-- Bell — desktop -->
           <li class="nav-item d-none d-lg-block">
             {% if current_user.role == 'tailor' %}{% set notif_url = url_for('tailor.my_notifications') %}
             {% elif current_user.role == 'admin' %}{% set notif_url = url_for('admin.my_notifications') %}
             {% elif current_user.role == 'delivery' %}{% set notif_url = url_for('delivery.dashboard') %}
             {% else %}{% set notif_url = url_for('customer.my_notifications') %}{% endif %}
-            <a class="nav-link text-white position-relative" href="{{ notif_url }}">
-              <i class="bi bi-bell fs-5"></i>
-              <span class="nav-notif-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:.6rem;{% if not unread_notif_count or unread_notif_count == 0 %}display:none;{% endif %}">{{ unread_notif_count or '' }}</span>
+            <a class="nav-link position-relative" href="{{ notif_url }}">
+              <i class="bi bi-bell fs-5" style="color:var(--gray-700);"></i>
+              <span class="nav-notif-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style="{% if not unread_notif_count or unread_notif_count == 0 %}display:none;{% endif %}">
+                {{ unread_notif_count or '' }}
+              </span>
             </a>
           </li>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">
-              <i class="bi bi-person-circle me-1"></i>
-              {% if current_user.role == 'customer' and active_family_profile %}
-                <span class="badge rounded-pill text-white me-1" style="background:{{ active_family_profile.avatar_color }};font-size:.65rem;">{{ active_family_profile.initials() }}</span>
-              {% endif %}
-              {{ current_user.name.split()[0] }}
+          <!-- Cart — desktop customer only -->
+          {% if current_user.role == 'customer' %}
+          <li class="nav-item d-none d-lg-block">
+            <a class="nav-link position-relative" href="{{ url_for('customer.cart') }}">
+              <i class="bi bi-bag fs-5" style="color:var(--gray-700);"></i>
+              <span class="nav-cart-count position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style="{% if not cart_count or cart_count == 0 %}display:none;{% endif %}">
+                {{ cart_count or '' }}
+              </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius:12px;">
-              <li><span class="dropdown-item-text text-muted small">{{ current_user.email }}</span></li>
-              {% if current_user.role == 'customer' %}
+          </li>
+          {% endif %}
+
+          <!-- User dropdown -->
+          <li class="nav-item dropdown ms-1">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+              <span class="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold flex-shrink-0"
+                    style="width:32px;height:32px;font-size:.8rem;background:var(--rose);">
+                {% if current_user.role == 'customer' and active_family_profile %}
+                  {{ active_family_profile.initials() }}
+                {% else %}
+                  {{ current_user.name[:1].upper() }}
+                {% endif %}
+              </span>
+              <span class="d-none d-lg-inline" style="font-size:.875rem;font-weight:600;color:var(--navy);">
+                {{ current_user.name.split()[0] }}
+              </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="min-width:220px;">
+              <li class="px-3 py-2">
+                <div class="fw-semibold small" style="color:var(--navy);">{{ current_user.name }}</div>
+                <div class="text-muted" style="font-size:.75rem;">{{ current_user.email }}</div>
+              </li>
               <li><hr class="dropdown-divider my-1"></li>
-              <li><span class="dropdown-item-text text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Ordering for</span></li>
-              {% if active_family_profile %}
+
+              {% if current_user.role == 'customer' %}
               <li>
-                <div class="dropdown-item d-flex align-items-center gap-2">
-                  <span class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0" style="width:28px;height:28px;font-size:.7rem;background:{{ active_family_profile.avatar_color }};">{{ active_family_profile.initials() }}</span>
-                  <span class="small fw-semibold">{{ active_family_profile.name }}</span>
-                  <form method="POST" action="{{ url_for('customer.profile_clear') }}" class="ms-auto">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-link text-muted p-0" title="Switch back to self"><i class="bi bi-x-circle"></i></button>
-                  </form>
+                <div class="px-3 pb-1">
+                  <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;">Ordering for</div>
+                  {% if active_family_profile %}
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <span class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0"
+                          style="width:26px;height:26px;font-size:.65rem;background:{{ active_family_profile.avatar_color }};">
+                      {{ active_family_profile.initials() }}
+                    </span>
+                    <span class="small fw-semibold flex-grow-1">{{ active_family_profile.name }}</span>
+                    <form method="POST" action="{{ url_for('customer.profile_clear') }}" class="ms-auto">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm p-0 text-muted border-0 bg-transparent" title="Switch back to self" style="line-height:1;">
+                        <i class="bi bi-x-circle-fill" style="font-size:.85rem;"></i>
+                      </button>
+                    </form>
+                  </div>
+                  {% else %}
+                  <div class="small mt-1" style="color:var(--navy);">Yourself</div>
+                  {% endif %}
                 </div>
               </li>
+              <li>
+                <a class="dropdown-item fw-semibold" href="{{ url_for('customer.select_profile') }}"
+                   style="color:#6f42c1;">
+                  <i class="bi bi-arrow-left-right me-2"></i>Switch Profile
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('customer.profiles') }}" style="font-size:.85rem;">
+                  <i class="bi bi-pencil-square me-2 text-muted"></i>Manage Profiles
+                </a>
+              </li>
+              <li><hr class="dropdown-divider my-1"></li>
+              <li><a class="dropdown-item" href="{{ url_for('customer.profile') }}"><i class="bi bi-person me-2 text-muted"></i>My Profile</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('customer.my_measurements') }}"><i class="bi bi-rulers me-2 text-muted"></i>Measurements</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('customer.my_appointments') }}"><i class="bi bi-calendar-check me-2 text-muted"></i>Appointments</a></li>
+              <li><hr class="dropdown-divider my-1"></li>
               {% else %}
-              <li><span class="dropdown-item-text small text-dark">Yourself</span></li>
-              {% endif %}
-              <li><a class="dropdown-item small" href="{{ url_for('customer.profiles') }}"><i class="bi bi-people me-2"></i>Manage Family Profiles</a></li>
-              <li><hr class="dropdown-divider my-1"></li>
-              <li><a class="dropdown-item" href="{{ url_for('customer.profile') }}"><i class="bi bi-person me-2"></i>My Profile</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('customer.my_measurements') }}"><i class="bi bi-rulers me-2"></i>My Measurements</a></li>
-              <li><hr class="dropdown-divider my-1"></li>
-              {% else %}
               <li><hr class="dropdown-divider my-1"></li>
               {% endif %}
-              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+
+              <li>
+                <a class="dropdown-item text-danger fw-semibold" href="{{ url_for('auth.logout') }}">
+                  <i class="bi bi-box-arrow-right me-2"></i>Logout
+                </a>
+              </li>
             </ul>
           </li>
+
         {% else %}
-          <li class="nav-item"><a class="nav-link text-white" href="{{ url_for('auth.login') }}">Login</a></li>
+          <!-- Guest -->
           <li class="nav-item">
-            <a class="btn btn-brand-orange ms-2 px-3 rounded-pill fw-semibold" href="{{ url_for('auth.register') }}">Register</a>
+            <a class="nav-link" href="{{ url_for('auth.login') }}" style="font-weight:600;">Login</a>
+          </li>
+          <li class="nav-item ms-1">
+            <a class="btn btn-brand-orange px-4 py-2" href="{{ url_for('auth.register') }}" style="font-size:.875rem;">
+              Get Started
+            </a>
           </li>
         {% endif %}
       </ul>
@@ -137,12 +217,13 @@
   </div>
 </nav>
 
-<div class="container-fluid px-0">
+<!-- Flash messages -->
+<div id="flash-container" class="container-fluid px-3 px-md-4">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="container-fluid px-3 px-md-4 pt-3">
+    <div class="pt-3">
       {% for cat, msg in messages %}
-      <div class="alert alert-{{ cat }} alert-dismissible fade show rounded-3" role="alert">
+      <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
         {{ msg | safe }}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
       </div>
@@ -150,26 +231,29 @@
     </div>
     {% endif %}
   {% endwith %}
+</div>
+
+<div class="container-fluid px-0">
   {% block content %}{% endblock %}
 </div>
 
+<!-- Mobile Bottom Nav (Customer only) -->
 {% if current_user.is_authenticated and current_user.role == 'customer' %}
-<!-- Mobile Bottom Nav (Customer) -->
 <nav class="bottom-nav d-md-none">
   <a href="{{ url_for('customer.home') }}" class="bottom-nav-item {% if request.endpoint == 'customer.home' %}active{% endif %}">
     <i class="bi bi-house-door{% if request.endpoint == 'customer.home' %}-fill{% endif %}"></i>
     <span>Home</span>
   </a>
-  <a href="{{ url_for('customer.tailors') }}" class="bottom-nav-item {% if request.endpoint == 'customer.tailors' %}active{% endif %}">
-    <i class="bi bi-scissors"></i>
-    <span>Tailors</span>
+  <a href="{{ url_for('customer.catalogue') }}" class="bottom-nav-item {% if 'customer.catalogue' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-grid{% if 'customer.catalogue' in request.endpoint %}-fill{% endif %}"></i>
+    <span>Catalogue</span>
   </a>
   <a href="{{ url_for('customer.my_orders') }}" class="bottom-nav-item {% if request.endpoint == 'customer.my_orders' %}active{% endif %}">
-    <i class="bi bi-receipt"></i>
+    <i class="bi bi-receipt{% if request.endpoint == 'customer.my_orders' %}-cutlet{% endif %}"></i>
     <span>Orders</span>
   </a>
   <a href="{{ url_for('customer.cart') }}" class="bottom-nav-item position-relative {% if request.endpoint == 'customer.cart' %}active{% endif %}">
-    <i class="bi bi-bag"></i>
+    <i class="bi bi-bag{% if request.endpoint == 'customer.cart' %}-fill{% endif %}"></i>
     <span class="bottom-nav-badge nav-cart-count" style="{% if not cart_count or cart_count == 0 %}display:none;{% endif %}">{{ cart_count or '' }}</span>
     <span>Cart</span>
   </a>
@@ -184,6 +268,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_scripts %}{% endblock %}
+
 {% if current_user.is_authenticated %}
 <script>
 (function() {
@@ -195,34 +280,25 @@
   var notifUrl = null;
   {% endif %}
 
-  function updateBadge(selector, count) {
-    var els = document.querySelectorAll(selector);
-    els.forEach(function(el) {
-      if (count > 0) {
-        el.textContent = count > 99 ? '99+' : count;
-        el.style.display = '';
-      } else {
-        el.style.display = 'none';
-      }
+  function updateBadge(sel, n) {
+    document.querySelectorAll(sel).forEach(function(el) {
+      if (n > 0) { el.textContent = n > 99 ? '99+' : n; el.style.display = ''; }
+      else { el.style.display = 'none'; }
     });
   }
 
-  function pollCounts() {
+  function poll() {
     if (!notifUrl) return;
     fetch(notifUrl, {credentials: 'same-origin'})
       .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(data) {
-        if (!data) return;
-        updateBadge('.nav-notif-count', data.count || 0);
-        if (data.cart_count !== undefined) {
-          updateBadge('.nav-cart-count', data.cart_count || 0);
-        }
-      })
-      .catch(function() {});
+      .then(function(d) {
+        if (!d) return;
+        updateBadge('.nav-notif-count', d.count || 0);
+        if (d.cart_count !== undefined) updateBadge('.nav-cart-count', d.cart_count || 0);
+      }).catch(function(){});
   }
-
-  pollCounts();
-  setInterval(pollCounts, 30000);
+  poll();
+  setInterval(poll, 30000);
 })();
 </script>
 {% endif %}

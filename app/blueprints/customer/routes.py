@@ -7,7 +7,10 @@ from app.blueprints.customer import customer_bp
 from app.extensions import db
 from app.models import (TailorProfile, Design, Order, CustomerMeasurement,
                         Coupon, Review, CartItem, Notification, notify,
-                        FamilyProfile, Message, generate_order_number)
+                        FamilyProfile, Message, generate_order_number,
+                        ProductDesign, TailorProductService,
+                        TailorMeasurementTemplate,
+                        StyleAgentConfig, StyleAgentAppointment, AdminConfig)
 
 
 def customer_required(f):
@@ -124,13 +127,27 @@ def profile_activate(profile_id):
 @login_required
 @customer_required
 def profile_clear():
-    session.pop('active_profile_id', None)
+    # Set to None (not pop) so the key EXISTS in session.
+    # home() checks 'key not in session' → None means "myself, don't redirect again"
+    session['active_profile_id'] = None
     flash('Switched to ordering for yourself.', 'info')
-    return redirect(request.referrer or url_for('customer.home'))
+    next_url = request.form.get('next') or request.referrer or url_for('customer.home')
+    return redirect(next_url)
 
 
 @customer_bp.route('/')
 def home():
+    # Remember-me / persistent-session guard:
+    # 'active_profile_id' key absent  → user hasn't chosen yet → show selector
+    # 'active_profile_id' = None      → user chose "myself" / skipped → OK
+    # 'active_profile_id' = <id>      → user chose a family profile → OK
+    if current_user.is_authenticated and current_user.role == 'customer':
+        if 'active_profile_id' not in session:
+            has_profiles = FamilyProfile.query.filter_by(
+                user_id=current_user.id).count() > 0
+            if has_profiles:
+                return redirect(url_for('customer.select_profile'))
+
     designs = Design.query.filter_by(is_active=True).all()
     featured_tailors = TailorProfile.query.filter_by(is_active=True).limit(6).all()
     return render_template('customer/home.html', designs=designs,
@@ -208,6 +225,51 @@ def tailor_detail(tailor_id):
     return render_template('customer/tailor_detail.html', tailor=tailor,
                            designs=designs, specs=specs, design_prices=design_prices,
                            selected_design_id=design_id)
+
+
+@customer_bp.route('/design/<int:design_id>')
+def design_showcase(design_id):
+    """New design-first browse page: pick variants then choose tailor."""
+    design = Design.query.filter_by(id=design_id, is_active=True).first_or_404()
+
+    # Tailors with an explicit measurement template for this design
+    templates = TailorMeasurementTemplate.query.filter_by(design_id=design_id).all()
+    seen_ids = set()
+    tailor_data = []
+    for tmpl in templates:
+        if tmpl.tailor_id in seen_ids:
+            continue
+        t = TailorProfile.query.filter_by(
+            id=tmpl.tailor_id, is_active=True, is_available=True).first()
+        if t:
+            seen_ids.add(t.id)
+            tailor_data.append({
+                'tailor': t,
+                'price': tmpl.effective_price(),
+                'original_price': tmpl.offer_original_price(),
+            })
+
+    # Fallback: tailors with design in specialisations but no explicit template
+    fallback = TailorProfile.query.filter_by(
+        is_active=True, is_available=True
+    ).filter(TailorProfile.specializations.contains(design.name)).all()
+    for t in fallback:
+        if t.id not in seen_ids:
+            seen_ids.add(t.id)
+            tailor_data.append({
+                'tailor': t,
+                'price': design.base_price,
+                'original_price': None,
+            })
+
+    tailor_data.sort(key=lambda x: x['tailor'].rating, reverse=True)
+
+    return render_template(
+        'customer/design_showcase.html',
+        design=design,
+        tailor_data=tailor_data,
+        design_options=design.get_design_options(),
+    )
 
 
 @customer_bp.route('/order/new', methods=['GET', 'POST'])
@@ -495,15 +557,49 @@ def my_measurements():
 @login_required
 @customer_required
 def cart():
+    from datetime import date, timedelta
+    from flask import current_app
+
     items = CartItem.query.filter_by(customer_id=current_user.id).order_by(CartItem.created_at).all()
     # Attach effective price to each item
     for item in items:
         tmpl = item.tailor.get_measurement_template(item.design_id)
         item.effective_price = tmpl.effective_price() if tmpl else item.design.base_price
     total = sum(i.effective_price * i.quantity for i in items)
+
+    # Load style agent slot config if enabled
+    admin_config = AdminConfig.get()
+    slot_config = None
+    slots = []
+    min_date = ''
+    max_date = ''
+
+    if admin_config.enable_style_agent_slot_booking:
+        slot_config = (StyleAgentConfig.query
+                       .filter_by(is_active=True)
+                       .order_by(StyleAgentConfig.start_hour)
+                       .first())
+        if not slot_config:
+            class _Default:
+                start_hour, end_hour, slot_duration_minutes = 10, 18, 30
+                def generate_slots(self):
+                    s, cur, end = [], self.start_hour * 60, self.end_hour * 60
+                    while cur < end:
+                        h, m = divmod(cur, 60)
+                        s.append(f'{h:02d}:{m:02d}')
+                        cur += self.slot_duration_minutes
+                    return s
+            slot_config = _Default()
+        slots = slot_config.generate_slots()
+        advance_days = current_app.config.get('BOOKING_ADVANCE_DAYS', 30)
+        today = date.today()
+        min_date = (today + timedelta(days=1)).isoformat()
+        max_date = (today + timedelta(days=advance_days)).isoformat()
+
     return render_template('customer/cart.html', items=items, total=total,
                            default_pickup=current_user.default_pickup_address or '',
-                           default_delivery=current_user.default_delivery_address or '')
+                           default_delivery=current_user.default_delivery_address or '',
+                           admin_config=admin_config, slots=slots, min_date=min_date, max_date=max_date)
 
 
 @customer_bp.route('/cart/add', methods=['GET', 'POST'])
@@ -520,8 +616,16 @@ def cart_add():
         price = tmpl.effective_price() if tmpl else design.base_price
         saved = CustomerMeasurement.query.filter_by(
             customer_id=current_user.id, design_id=design_id).first()
+        design_options = design.get_design_options()
+        # Pre-select variants passed from the design showcase page
+        url_variants = {}
+        for group in design_options:
+            val = request.args.get(f'v_{group["group"]}', '').strip()
+            if val:
+                url_variants[group['group']] = val
         return render_template('customer/cart_add.html', tailor=tailor, design=design,
-                               fields=fields, price=price, saved_measurements=saved)
+                               fields=fields, price=price, saved_measurements=saved,
+                               design_options=design_options, url_variants=url_variants)
     tailor_id = request.form.get('tailor_id', type=int)
     design_id = request.form.get('design_id', type=int)
     fabric_description = request.form.get('fabric_description', '').strip()
@@ -535,12 +639,23 @@ def cart_add():
         flash('Invalid tailor or design.', 'danger')
         return redirect(request.referrer or url_for('customer.tailors'))
 
+    # Collect selected design variant options
+    selected_variants = {}
+    for group in design.get_design_options():
+        field_name = f'variant_{group["group"]}'
+        val = request.form.get(field_name, '').strip()
+        if val:
+            selected_variants[group['group']] = val
+
     # Check if same design+tailor already in cart
     existing = CartItem.query.filter_by(
         customer_id=current_user.id, tailor_id=tailor_id, design_id=design_id
     ).first()
     if existing:
         existing.quantity += 1
+        # Update variants if newly specified
+        if selected_variants:
+            existing.selected_variants = json.dumps(selected_variants)
         db.session.commit()
         flash(f'Increased quantity of {design.name} from {tailor.shop_name} in your cart.', 'success')
         return redirect(url_for('customer.cart'))
@@ -563,6 +678,7 @@ def cart_add():
         special_instructions=special_instructions,
         measurement_preference=measurement_preference,
         measurements=json.dumps(measurements),
+        selected_variants=json.dumps(selected_variants),
     )
     db.session.add(item)
     db.session.commit()
@@ -613,6 +729,17 @@ def cart_checkout():
         flash('Please fill in pickup and delivery addresses.', 'danger')
         return redirect(url_for('customer.cart'))
 
+    # Check if style agent slot booking is enabled
+    admin_config = AdminConfig.get()
+    style_agent_date = ''
+    style_agent_time = ''
+    if admin_config.enable_style_agent_slot_booking:
+        style_agent_date = request.form.get('style_agent_date', '').strip()
+        style_agent_time = request.form.get('style_agent_time', '').strip()
+        if not style_agent_date or not style_agent_time:
+            flash('Please select a style agent visit slot.', 'danger')
+            return redirect(url_for('customer.cart'))
+
     # Save addresses to profile if changed
     if pickup_address != current_user.default_pickup_address:
         current_user.default_pickup_address = pickup_address
@@ -660,6 +787,8 @@ def cart_checkout():
             coupon_code=applied_code,
             payment_method=payment_method,
             payment_status='cod_pending' if payment_method == 'cod' else 'unpaid',
+            style_agent_appointment_date=style_agent_date if admin_config.enable_style_agent_slot_booking else '',
+            style_agent_appointment_time=style_agent_time if admin_config.enable_style_agent_slot_booking else '',
         )
         db.session.add(order)
         db.session.flush()
@@ -674,7 +803,8 @@ def cart_checkout():
                 fabric_description=item.fabric_description,
                 measurements=item.measurements,
                 special_instructions=item.special_instructions,
-                unit_price=price
+                selected_variants=item.selected_variants,
+                unit_price=price,
             )
             db.session.add(order_item)
 
@@ -771,3 +901,207 @@ def _save_measurements(customer_id, design_id, measurements_dict, taken_by_id=No
         )
         db.session.add(record)
     return record
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — PRODUCT CATALOGUE BROWSING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@customer_bp.route('/catalogue')
+def catalogue():
+    """Level-1 grid: all active categories."""
+    categories = Design.query.filter_by(is_active=True).order_by(Design.name).all()
+    # Attach sub-design counts
+    for cat in categories:
+        cat.sub_count = ProductDesign.query.filter_by(
+            design_id=cat.id, is_active=True).count()
+    return render_template('customer/catalogue.html', categories=categories)
+
+
+@customer_bp.route('/catalogue/<int:category_id>')
+def catalogue_category(category_id):
+    """Level-2 grid: all sub-designs under a category."""
+    category = Design.query.get_or_404(category_id)
+    sub_designs = (ProductDesign.query
+                   .filter_by(design_id=category_id, is_active=True)
+                   .order_by(ProductDesign.display_order, ProductDesign.name)
+                   .all())
+    return render_template('customer/catalogue_category.html',
+                           category=category, sub_designs=sub_designs)
+
+
+@customer_bp.route('/catalogue/design/<int:design_id>')
+def catalogue_design(design_id):
+    """Level-3 detail: sub-design info + variants + tailors who can stitch it."""
+    pd = ProductDesign.query.filter_by(id=design_id, is_active=True).first_or_404()
+    services = (TailorProductService.query
+                .filter_by(product_design_id=design_id, is_available=True)
+                .join(TailorProductService.tailor)
+                .filter_by(is_active=True, is_available=True)
+                .all())
+    variants = pd.variants.order_by('display_order').all()
+    images = pd.images.order_by('display_order').all()
+    return render_template('customer/catalogue_design.html',
+                           pd=pd, services=services, variants=variants, images=images)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — STYLE AGENT APPOINTMENT BOOKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@customer_bp.route('/appointments')
+@login_required
+@customer_required
+def my_appointments():
+    appts = (StyleAgentAppointment.query
+             .filter_by(customer_id=current_user.id)
+             .order_by(StyleAgentAppointment.appointment_date.desc())
+             .all())
+    return render_template('customer/my_appointments.html', appointments=appts)
+
+
+@customer_bp.route('/appointments/book', methods=['GET', 'POST'])
+@login_required
+@customer_required
+def book_appointment():
+    from datetime import date, timedelta
+    from flask import current_app
+
+    # Load active slot config (widest hours wins)
+    config = (StyleAgentConfig.query
+              .filter_by(is_active=True)
+              .order_by(StyleAgentConfig.start_hour)
+              .first())
+    if not config:
+        # Fallback default: 10–18
+        class _Default:
+            start_hour, end_hour, slot_duration_minutes = 10, 18, 30
+            def generate_slots(self):
+                slots, cur, end = [], self.start_hour * 60, self.end_hour * 60
+                while cur < end:
+                    h, m = divmod(cur, 60)
+                    slots.append(f'{h:02d}:{m:02d}')
+                    cur += self.slot_duration_minutes
+                return slots
+        config = _Default()
+
+    slots = config.generate_slots()
+    advance_days = current_app.config.get('BOOKING_ADVANCE_DAYS', 30)
+    today = date.today()
+    min_date = (today + timedelta(days=1)).isoformat()
+    max_date = (today + timedelta(days=advance_days)).isoformat()
+
+    # Pre-select product design if coming from catalogue
+    design_id = request.args.get('design_id', type=int)
+    pd = ProductDesign.query.get(design_id) if design_id else None
+
+    if request.method == 'POST':
+        appt_date = request.form.get('appointment_date', '').strip()
+        appt_time = request.form.get('appointment_time', '').strip()
+        service_type = request.form.get('service_type', 'both')
+        address = request.form.get('customer_address', '').strip()
+        notes = request.form.get('notes', '').strip()
+        prod_design_id = request.form.get('product_design_id', type=int)
+
+        if not appt_date or not appt_time or not address:
+            flash('Please fill in date, time slot, and address.', 'danger')
+            return render_template('customer/book_appointment.html',
+                                   slots=slots, min_date=min_date, max_date=max_date,
+                                   config=config, pd=pd)
+
+        appt = StyleAgentAppointment(
+            customer_id=current_user.id,
+            appointment_date=appt_date,
+            appointment_time=appt_time,
+            service_type=service_type,
+            customer_address=address,
+            notes=notes,
+            product_design_id=prod_design_id or None,
+            status='pending',
+        )
+        db.session.add(appt)
+        db.session.commit()
+
+        Notification.create(
+            user_id=current_user.id,
+            title='Appointment Booked',
+            body=f'Your Style Agent visit is booked for {appt.display_datetime()}. We\'ll confirm shortly.',
+            type='success',
+        )
+        db.session.commit()
+
+        flash('Appointment booked! We\'ll confirm and assign a Style Agent shortly.', 'success')
+        return redirect(url_for('customer.my_appointments'))
+
+    return render_template('customer/book_appointment.html',
+                           slots=slots, min_date=min_date, max_date=max_date,
+                           config=config, pd=pd)
+
+
+@customer_bp.route('/appointments/<int:appt_id>/cancel', methods=['POST'])
+@login_required
+@customer_required
+def cancel_appointment(appt_id):
+    appt = StyleAgentAppointment.query.filter_by(
+        id=appt_id, customer_id=current_user.id).first_or_404()
+    if appt.status in ('completed', 'cancelled'):
+        flash('This appointment cannot be cancelled.', 'warning')
+        return redirect(url_for('customer.my_appointments'))
+    appt.status = 'cancelled'
+    db.session.commit()
+    flash('Appointment cancelled.', 'info')
+    return redirect(url_for('customer.my_appointments'))
+
+
+@customer_bp.route('/orders/<int:order_id>/confirm-style-agent', methods=['POST'])
+@login_required
+@customer_required
+def confirm_style_agent(order_id):
+    """Customer confirms the admin-assigned style agent slot."""
+    order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
+
+    if not order.auto_assigned_style_agent_id:
+        flash('No style agent has been assigned to this order.', 'warning')
+        return redirect(url_for('customer.order_detail', order_id=order_id))
+
+    if order.customer_confirmed_slot:
+        flash('You have already confirmed this assignment.', 'info')
+        return redirect(url_for('customer.order_detail', order_id=order_id))
+
+    order.customer_confirmed_slot = True
+    db.session.commit()
+
+    Notification.create(
+        user_id=order.customer_id,
+        title='Style Agent Confirmed',
+        body=f'You have confirmed {order.style_agent.name} as your Style Agent.',
+        type='success',
+        order_id=order.id,
+    )
+    db.session.commit()
+
+    flash(f'Style Agent {order.style_agent.name} confirmed!', 'success')
+    return redirect(url_for('customer.order_detail', order_id=order_id))
+
+
+# ── Dummy payment endpoint ───────────────────────────────────────────────────
+
+@customer_bp.route('/orders/<int:order_id>/pay', methods=['POST'])
+@login_required
+@customer_required
+def pay_order(order_id):
+    order = Order.query.filter_by(id=order_id, customer_id=current_user.id).first_or_404()
+    if order.payment_status == 'paid':
+        flash('This order is already paid.', 'info')
+        return redirect(url_for('customer.order_detail', order_id=order_id))
+
+    from app.services import payment_service
+    method = request.form.get('payment_method', 'dummy_card')
+    success, txn = payment_service.process_payment(order, payment_method=method)
+
+    if success:
+        flash(f'Payment of ₹{txn.amount:,.0f} successful! Ref: {txn.transaction_ref}', 'success')
+    else:
+        flash(f'Payment failed: {txn.failure_reason}. Please try again.', 'danger')
+
+    return redirect(url_for('customer.order_detail', order_id=order_id))

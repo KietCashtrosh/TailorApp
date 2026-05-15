@@ -1,0 +1,105 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+
+<div class="mb-4">
+  <h4 class="fw-bold"><i class="bi bi-gear me-2 text-brand-orange"></i>System Settings</h4>
+  <p class="text-muted small mb-0">Configure platform-wide behavior and business rules</p>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <!-- Tailor Acceptance Window -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Tailor Acceptance Window (hours)</label>
+            <p class="text-muted small">How long a tailor has to accept/reject an order before it expires</p>
+            <input type="number" name="tailor_window" class="form-control" min="1" max="24"
+                   value="{{ config.tailor_acceptance_window_hours }}">
+            <small class="text-muted d-block mt-2">Default: 2 hours. Lazy-check strategy used at view time.</small>
+          </div>
+
+          <hr>
+
+          <!-- Enable/Disable Style Agent Slot Booking -->
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="enable_slot_booking" id="enableSlotBooking"
+                     {% if config.enable_style_agent_slot_booking %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="enableSlotBooking">
+                Enable Style Agent Slot Booking
+              </label>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+              <strong>Enabled:</strong> Customers select a style agent visit slot during checkout (before payment)<br>
+              <strong>Disabled:</strong> No slot selection during checkout; admin manually assigns style agent after tailor accepts
+            </p>
+          </div>
+
+          <hr>
+
+          <!-- Auto-Confirm Orders -->
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="auto_confirm" id="autoConfirm"
+                     {% if config.auto_confirm_orders_if_no_response %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="autoConfirm">
+                Auto-Confirm Orders if No Tailor Response
+              </label>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+              If enabled, orders automatically confirm after the acceptance window expires with no tailor response<br>
+              If disabled, expired orders show "expired" status and customer sees alternative tailors
+            </p>
+          </div>
+
+          <hr>
+
+          <button type="submit" class="btn btn-brand-orange">
+            <i class="bi bi-check-lg me-2"></i>Save Settings
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm bg-light">
+      <div class="card-body p-3">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Current Configuration</h6>
+        <div class="mb-3">
+          <div class="small text-muted">Tailor Acceptance Window</div>
+          <div class="fw-bold">{{ config.tailor_acceptance_window_hours }} hour<span>{{ 's' if config.tailor_acceptance_window_hours != 1 else '' }}</span></div>
+        </div>
+        <div class="mb-3">
+          <div class="small text-muted">Style Agent Slot Booking</div>
+          <div>
+            {% if config.enable_style_agent_slot_booking %}
+            <span class="badge bg-success">Enabled</span>
+            {% else %}
+            <span class="badge bg-secondary">Disabled</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="small text-muted">Auto-Confirm on Timeout</div>
+          <div>
+            {% if config.auto_confirm_orders_if_no_response %}
+            <span class="badge bg-warning">Enabled</span>
+            {% else %}
+            <span class="badge bg-secondary">Disabled</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="border-top pt-3 mt-3">
+          <small class="text-muted">Updated: <br>{{ config.updated_at.strftime('%d %b %Y, %H:%M') if config.updated_at else 'Never' }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

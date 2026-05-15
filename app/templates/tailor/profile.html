@@ -7,7 +7,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold py-3">Shop & Profile Details</div>
       <div class="card-body p-4">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="row g-3">
             <div class="col-md-6">
@@ -55,6 +55,19 @@
               <label class="form-label fw-semibold">Bio / About</label>
               <textarea name="bio" class="form-control" rows="3" placeholder="Tell customers about your expertise...">{{ tailor_profile.bio }}</textarea>
             </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Shop / Profile Photo</label>
+              {% if tailor_profile.shop_photo %}
+              <div class="mb-2">
+                <img src="{{ url_for('static', filename='uploads/shop_photos/' + tailor_profile.shop_photo) }}"
+                     alt="Shop Photo" class="rounded-3 border"
+                     style="width:120px;height:120px;object-fit:cover;">
+                <div class="text-muted small mt-1">Current photo — upload a new one to replace it.</div>
+              </div>
+              {% endif %}
+              <input type="file" name="shop_photo" class="form-control" accept="image/*">
+              <div class="form-text">JPG, PNG, WEBP — max 4 MB. Will be visible to customers.</div>
+            </div>
           </div>
           <button type="submit" class="btn btn-brand mt-4 px-4"><i class="bi bi-save me-2"></i>Save Profile</button>
         </form>
@@ -65,7 +78,14 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <div class="text-center mb-3">
+          {% if tailor_profile.shop_photo %}
+          <img src="{{ url_for('static', filename='uploads/shop_photos/' + tailor_profile.shop_photo) }}"
+               alt="{{ tailor_profile.shop_name }}"
+               class="rounded-3 border mb-3"
+               style="width:110px;height:110px;object-fit:cover;">
+          {% else %}
           <div class="display-4 mb-2">✂️</div>
+          {% endif %}
           <h5 class="fw-bold">{{ tailor_profile.shop_name }}</h5>
           <div class="text-muted small">{{ tailor_profile.address }}</div>
         </div>

@@ -1,0 +1,179 @@
+{% extends "delivery/base.html" %}
+{% block delivery_content %}
+<div class="mb-3">
+  <a href="{{ url_for('delivery.my_appointments') }}" class="text-decoration-none text-muted small">
+    <i class="bi bi-arrow-left me-1"></i>Back to My Appointments
+  </a>
+</div>
+
+<div class="row g-4">
+  <!-- Main Info -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-bold"><i class="bi bi-calendar-check me-2 text-brand-orange"></i>Appointment Details</span>
+        <span class="badge bg-{{ appt.status_badge() }} px-3 py-2">{{ appt.status_label() }}</span>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <div class="text-muted small">Date &amp; Time</div>
+            <div class="fw-bold fs-5">{{ appt.display_datetime() }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small">Service Type</div>
+            <div class="fw-semibold">{{ appt.service_label() }}</div>
+          </div>
+          {% if appt.product_design %}
+          <div class="col-12">
+            <div class="text-muted small">Design</div>
+            <div class="fw-semibold">{{ appt.product_design.category.name }} → {{ appt.product_design.name }}</div>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <div class="text-muted small">Customer Address</div>
+            <div class="fw-semibold">{{ appt.customer_address }}</div>
+          </div>
+          {% if appt.notes %}
+          <div class="col-12">
+            <div class="text-muted small">Customer Notes</div>
+            <div class="fst-italic">{{ appt.notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Contact Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-person-circle me-2 text-brand-orange"></i>Customer</h6>
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-brand-purple d-flex align-items-center justify-content-center text-white fw-bold"
+               style="width:48px;height:48px;font-size:1.1rem;">
+            {{ appt.customer.name[:1].upper() }}
+          </div>
+          <div>
+            <div class="fw-semibold">{{ appt.customer.name }}</div>
+            <a href="tel:{{ appt.customer.phone }}" class="text-decoration-none text-brand-orange fw-semibold">
+              <i class="bi bi-telephone me-1"></i>{{ appt.customer.phone }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Notes (if completed/rescheduled) -->
+    {% if appt.agent_notes %}
+    <div class="card border-0 shadow-sm bg-light mb-4">
+      <div class="card-body p-3">
+        <div class="text-muted small mb-1">Your Notes</div>
+        <div>{{ appt.agent_notes }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Actions -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-bold py-3">Actions</div>
+      <div class="card-body p-4 d-flex flex-column gap-3">
+
+        {% if appt.status == 'agent_assigned' %}
+        <!-- Mark Arrived -->
+        <form method="POST" action="{{ url_for('delivery.appointment_arrived', appt_id=appt.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn w-100" style="background:#fd7e14;color:#fff;">
+            <i class="bi bi-geo-alt-fill me-2"></i>I've Arrived at Customer's Location
+          </button>
+        </form>
+
+        <!-- Reschedule -->
+        <button class="btn btn-outline-warning w-100" data-bs-toggle="collapse" data-bs-target="#rescheduleForm">
+          <i class="bi bi-calendar-x me-2"></i>Request Reschedule
+        </button>
+        <div class="collapse" id="rescheduleForm">
+          <form method="POST" action="{{ url_for('delivery.appointment_reschedule', appt_id=appt.id) }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea name="agent_notes" class="form-control mb-2" rows="2" placeholder="Reason for rescheduling…"></textarea>
+            <button class="btn btn-warning w-100">Confirm Reschedule Request</button>
+          </form>
+        </div>
+        {% endif %}
+
+        {% if appt.status == 'arrived' %}
+        <!-- Complete Appointment -->
+        <div class="alert alert-success border-0 rounded-3 p-3">
+          <i class="bi bi-check-circle-fill me-2"></i>You have arrived. Complete the visit below after finishing.
+        </div>
+        <button class="btn btn-success w-100" data-bs-toggle="collapse" data-bs-target="#completeForm">
+          <i class="bi bi-check2-all me-2"></i>Mark Visit as Complete
+        </button>
+        <div class="collapse" id="completeForm">
+          <form method="POST" action="{{ url_for('delivery.appointment_complete', appt_id=appt.id) }}" class="mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label small fw-semibold">Visit notes (optional)</label>
+            <textarea name="agent_notes" class="form-control mb-2" rows="2"
+                      placeholder="e.g. Measurements taken, fabric collected, any issues…"></textarea>
+            <button class="btn btn-success w-100">Confirm Completion</button>
+          </form>
+        </div>
+        {% endif %}
+
+        {% if appt.status == 'completed' %}
+        <div class="text-center py-3">
+          <i class="bi bi-patch-check-fill text-success fs-1 d-block mb-2"></i>
+          <div class="fw-bold text-success">Visit Completed</div>
+          {% if appt.completed_at %}
+          <div class="text-muted small">{{ appt.completed_at.strftime('%d %b %Y at %H:%M') }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if appt.status in ('cancelled', 'rescheduled') %}
+        <div class="text-center py-3 text-muted">
+          <i class="bi bi-x-circle fs-1 opacity-25 d-block mb-2"></i>
+          This appointment is {{ appt.status }}.
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Service Checklist -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-bold py-3">Visit Checklist</div>
+      <div class="card-body p-3">
+        <ul class="list-unstyled mb-0">
+          {% if appt.service_type in ('measurement_only', 'both') %}
+          <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+            <i class="bi bi-rulers text-brand-orange fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Take Measurements</div>
+              <div class="text-muted" style="font-size:.75rem;">Use measuring tape for all required fields</div>
+            </div>
+          </li>
+          {% endif %}
+          {% if appt.service_type in ('fabric_pickup_only', 'both') %}
+          <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+            <i class="bi bi-bag text-brand-orange fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Collect Fabric</div>
+              <div class="text-muted" style="font-size:.75rem;">Check fabric quantity and condition before pickup</div>
+            </div>
+          </li>
+          {% endif %}
+          <li class="d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-camera text-brand-orange fs-5"></i>
+            <div>
+              <div class="fw-semibold small">Capture Reference Photos</div>
+              <div class="text-muted" style="font-size:.75rem;">Photo of design reference / customer preference</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

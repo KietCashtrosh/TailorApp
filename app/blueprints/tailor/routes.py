@@ -1,12 +1,21 @@
 import json
+import os
+import secrets
 from datetime import datetime
 from functools import wraps
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import (render_template, redirect, url_for, flash, request,
+                   jsonify, current_app)
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from app.blueprints.tailor import tailor_bp
 from app.extensions import db
 from app.models import (Order, TailorProfile, Design, TailorMeasurementTemplate,
                         Notification, notify, Message, generate_otp)
+
+
+def allowed_file(filename):
+    allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg', 'webp'})
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 
 def tailor_required(f):
@@ -267,12 +276,136 @@ def profile():
         tailor_profile.set_specializations(request.form.getlist('specializations'))
         current_user.name = request.form.get('name', current_user.name).strip()
         current_user.phone = request.form.get('phone', current_user.phone).strip()
+
+        # Handle shop photo upload
+        photo = request.files.get('shop_photo')
+        if photo and photo.filename and allowed_file(photo.filename):
+            ext = photo.filename.rsplit('.', 1)[1].lower()
+            filename = secure_filename(f'shop_{tailor_profile.id}.{ext}')
+            shop_photos_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'shop_photos')
+            os.makedirs(shop_photos_dir, exist_ok=True)
+            photo.save(os.path.join(shop_photos_dir, filename))
+            tailor_profile.shop_photo = filename
+
         db.session.commit()
         flash('Profile updated successfully.', 'success')
         return redirect(url_for('tailor.profile'))
 
     return render_template('tailor/profile.html',
                            tailor_profile=tailor_profile, all_designs=all_designs)
+
+
+# ── Tailor: Update Measurements on Order ──────────────────
+@tailor_bp.route('/orders/<int:order_id>/update-measurements', methods=['POST'])
+@login_required
+@tailor_required
+def update_measurements(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+
+    if order.status not in ['accepted', 'fabric_collected', 'stitching', 'ready']:
+        flash('Measurements can only be updated during active orders.', 'warning')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+    current = order.get_measurements()
+    keys = request.form.getlist('measurement_key')
+    values = request.form.getlist('measurement_value')
+    for k, v in zip(keys, values):
+        if k.strip():
+            current[k.strip()] = v.strip()
+
+    order.measurements = json.dumps(current)
+    db.session.commit()
+    flash('Measurements updated successfully.', 'success')
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+# ── Tailor: Work-Proof Image Upload ───────────────────────
+@tailor_bp.route('/orders/<int:order_id>/upload-image', methods=['POST'])
+@login_required
+@tailor_required
+def upload_work_image(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+
+    if order.status not in ['accepted', 'fabric_collected', 'stitching', 'ready']:
+        flash('Images can only be uploaded during active orders.', 'warning')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+    file = request.files.get('work_image')
+    if not file or not file.filename:
+        flash('No file selected.', 'warning')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+    if not allowed_file(file.filename):
+        flash('Only image files (PNG, JPG, JPEG, WEBP) are allowed.', 'danger')
+        return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = secure_filename(f'work_{order_id}_{secrets.token_hex(6)}.{ext}')
+    work_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'work_images')
+    os.makedirs(work_dir, exist_ok=True)
+    file.save(os.path.join(work_dir, filename))
+
+    order.add_work_image(filename)
+    db.session.commit()
+    flash('Work image uploaded.', 'success')
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+@tailor_bp.route('/orders/<int:order_id>/delete-image', methods=['POST'])
+@login_required
+@tailor_required
+def delete_work_image(order_id):
+    profile = get_tailor_profile()
+    order = Order.query.filter_by(id=order_id, tailor_id=profile.id).first_or_404()
+
+    filename = request.form.get('filename', '').strip()
+    if filename:
+        order.remove_work_image(filename)
+        work_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'work_images')
+        filepath = os.path.join(work_dir, filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        db.session.commit()
+        flash('Image removed.', 'success')
+    return redirect(url_for('tailor.order_detail', order_id=order_id))
+
+
+# ── Tailor: Earnings Summary ───────────────────────────────
+@tailor_bp.route('/earnings')
+@login_required
+@tailor_required
+def earnings():
+    profile = get_tailor_profile()
+
+    delivered_orders = profile.orders.filter_by(status='delivered').order_by(
+        Order.updated_at.desc()
+    ).all()
+
+    now = datetime.utcnow()
+    total_earned = sum(o.final_price or o.estimated_price or 0 for o in delivered_orders)
+    this_month_orders = [
+        o for o in delivered_orders
+        if o.updated_at and o.updated_at.year == now.year and o.updated_at.month == now.month
+    ]
+    this_month_earned = sum(o.final_price or o.estimated_price or 0 for o in this_month_orders)
+
+    active_orders = profile.orders.filter(
+        Order.status.in_(['accepted', 'fabric_pickup', 'fabric_collected', 'stitching'])
+    ).all()
+    pending_amount = sum(o.final_price or o.estimated_price or 0 for o in active_orders)
+
+    return render_template(
+        'tailor/earnings.html',
+        profile=profile,
+        delivered_orders=delivered_orders,
+        total_earned=total_earned,
+        this_month_earned=this_month_earned,
+        this_month_count=len(this_month_orders),
+        pending_amount=pending_amount,
+        active_count=len(active_orders),
+    )
 
 
 # ── Measurement Templates ──────────────────────────────────

@@ -11,7 +11,10 @@ from app.blueprints.admin import admin_bp
 from app.extensions import db
 from app.models import (User, TailorProfile, Order, DeliveryAssignment, Design,
                         Coupon, Review, TailorMeasurementTemplate, Notification, notify,
-                        generate_otp, ORDER_STATUSES)
+                        generate_otp, ORDER_STATUSES,
+                        ProductDesign, DesignVariant, DesignImage, TailorProductService,
+                        StyleAgentConfig, StyleAgentAppointment, AdminConfig,
+                        PaymentTransaction, PaymentAllocation)
 
 
 def admin_required(f):
@@ -611,3 +614,461 @@ def validate_coupon_api():
     return jsonify({'valid': True, 'discount': discount,
                     'type': coupon.discount_type, 'value': coupon.discount_value,
                     'message': f'Coupon applied! You save Rs.{discount:.0f}.'})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — CATALOGUE MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _save_catalogue_image(file, subfolder='catalogue'):
+    """Save uploaded image to uploads/catalogue/ and return filename."""
+    if not file or not allowed_file(file.filename):
+        return None
+    filename = secure_filename(file.filename)
+    import time
+    filename = f"{int(time.time())}_{filename}"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], subfolder)
+    os.makedirs(upload_dir, exist_ok=True)
+    file.save(os.path.join(upload_dir, filename))
+    return filename
+
+
+@admin_bp.route('/catalogue')
+@login_required
+@admin_required
+def catalogue():
+    """List all product designs grouped by category."""
+    categories = Design.query.filter_by(is_active=True).order_by(Design.name).all()
+    all_designs = ProductDesign.query.order_by(
+        ProductDesign.design_id, ProductDesign.display_order
+    ).all()
+    return render_template('admin/catalogue.html',
+                           categories=categories, all_designs=all_designs)
+
+
+@admin_bp.route('/catalogue/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def catalogue_new():
+    categories = Design.query.filter_by(is_active=True).order_by(Design.name).all()
+    if request.method == 'POST':
+        design_id = request.form.get('design_id', type=int)
+        name = request.form.get('name', '').strip()
+        if not design_id or not name:
+            flash('Category and name are required.', 'danger')
+            return render_template('admin/catalogue_form.html', categories=categories,
+                                   product_design=None)
+
+        fabric_list = [f.strip() for f in request.form.get('fabric_suggestions', '').split(',') if f.strip()]
+        pd = ProductDesign(
+            design_id=design_id,
+            name=name,
+            description=request.form.get('description', '').strip(),
+            base_price_modifier=float(request.form.get('base_price_modifier') or 0),
+            fabric_suggestions=json.dumps(fabric_list),
+            display_order=int(request.form.get('display_order') or 0),
+        )
+        db.session.add(pd)
+        db.session.flush()
+
+        # Handle main image upload
+        img_file = request.files.get('main_image')
+        if img_file and img_file.filename:
+            fn = _save_catalogue_image(img_file)
+            if fn:
+                db.session.add(DesignImage(product_design_id=pd.id,
+                                           image_filename=fn, image_type='main', display_order=0))
+
+        db.session.commit()
+        flash(f'"{pd.name}" added to catalogue.', 'success')
+        return redirect(url_for('admin.catalogue_detail', design_id=pd.id))
+
+    return render_template('admin/catalogue_form.html', categories=categories, product_design=None)
+
+
+@admin_bp.route('/catalogue/<int:design_id>')
+@login_required
+@admin_required
+def catalogue_detail(design_id):
+    pd = ProductDesign.query.get_or_404(design_id)
+    tailors = TailorProfile.query.filter_by(is_active=True).all()
+    services = {s.tailor_id: s for s in pd.tailor_services.all()}
+    return render_template('admin/catalogue_detail.html', pd=pd,
+                           tailors=tailors, services=services)
+
+
+@admin_bp.route('/catalogue/<int:design_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def catalogue_edit(design_id):
+    pd = ProductDesign.query.get_or_404(design_id)
+    categories = Design.query.filter_by(is_active=True).order_by(Design.name).all()
+    if request.method == 'POST':
+        pd.design_id = request.form.get('design_id', type=int) or pd.design_id
+        pd.name = request.form.get('name', pd.name).strip()
+        pd.description = request.form.get('description', '').strip()
+        pd.base_price_modifier = float(request.form.get('base_price_modifier') or 0)
+        fabric_list = [f.strip() for f in request.form.get('fabric_suggestions', '').split(',') if f.strip()]
+        pd.fabric_suggestions = json.dumps(fabric_list)
+        pd.display_order = int(request.form.get('display_order') or 0)
+
+        img_file = request.files.get('main_image')
+        if img_file and img_file.filename:
+            fn = _save_catalogue_image(img_file)
+            if fn:
+                existing = pd.images.filter_by(image_type='main').first()
+                if existing:
+                    existing.image_filename = fn
+                else:
+                    db.session.add(DesignImage(product_design_id=pd.id,
+                                               image_filename=fn, image_type='main', display_order=0))
+
+        db.session.commit()
+        flash('Catalogue design updated.', 'success')
+        return redirect(url_for('admin.catalogue_detail', design_id=pd.id))
+
+    return render_template('admin/catalogue_form.html', categories=categories, product_design=pd)
+
+
+@admin_bp.route('/catalogue/<int:design_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def catalogue_toggle(design_id):
+    pd = ProductDesign.query.get_or_404(design_id)
+    pd.is_active = not pd.is_active
+    db.session.commit()
+    flash(f'"{pd.name}" {"activated" if pd.is_active else "deactivated"}.', 'success')
+    return redirect(url_for('admin.catalogue'))
+
+
+# ── Variants ────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/catalogue/<int:design_id>/variants/add', methods=['POST'])
+@login_required
+@admin_required
+def variant_add(design_id):
+    pd = ProductDesign.query.get_or_404(design_id)
+    group = request.form.get('variant_group', '').strip()
+    options_raw = request.form.get('variant_options', '').strip()
+    if not group or not options_raw:
+        flash('Variant group and at least one option are required.', 'danger')
+        return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+    opts = [o.strip() for o in options_raw.split(',') if o.strip()]
+    v = DesignVariant(
+        product_design_id=pd.id,
+        variant_group=group,
+        variant_options=json.dumps(opts),
+        price_modifier=float(request.form.get('price_modifier') or 0),
+        display_order=int(request.form.get('display_order') or 0),
+    )
+    db.session.add(v)
+    db.session.commit()
+    flash(f'Variant "{group}" added.', 'success')
+    return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+
+@admin_bp.route('/variants/<int:variant_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def variant_delete(variant_id):
+    v = DesignVariant.query.get_or_404(variant_id)
+    design_id = v.product_design_id
+    db.session.delete(v)
+    db.session.commit()
+    flash('Variant removed.', 'success')
+    return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+
+# ── Tailor Service Mapping ──────────────────────────────────────────────────
+
+@admin_bp.route('/catalogue/<int:design_id>/services/save', methods=['POST'])
+@login_required
+@admin_required
+def tailor_service_save(design_id):
+    pd = ProductDesign.query.get_or_404(design_id)
+    tailor_id = request.form.get('tailor_id', type=int)
+    if not tailor_id:
+        flash('Select a tailor.', 'danger')
+        return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+    svc = TailorProductService.query.filter_by(
+        tailor_id=tailor_id, product_design_id=pd.id).first()
+    if not svc:
+        svc = TailorProductService(tailor_id=tailor_id, product_design_id=pd.id)
+        db.session.add(svc)
+
+    price_val = request.form.get('custom_price', '').strip()
+    svc.custom_price = float(price_val) if price_val else None
+    svc.estimated_days = int(request.form.get('estimated_days') or 7)
+    svc.expertise_level = request.form.get('expertise_level', 'intermediate')
+    svc.is_available = 'is_available' in request.form
+
+    db.session.commit()
+    flash('Tailor service saved.', 'success')
+    return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+
+@admin_bp.route('/catalogue/services/<int:service_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def tailor_service_delete(service_id):
+    svc = TailorProductService.query.get_or_404(service_id)
+    design_id = svc.product_design_id
+    db.session.delete(svc)
+    db.session.commit()
+    flash('Tailor removed from this design.', 'success')
+    return redirect(url_for('admin.catalogue_detail', design_id=design_id))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — STYLE AGENT APPOINTMENTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/appointments')
+@login_required
+@admin_required
+def appointments():
+    status_filter = request.args.get('status', '')
+    q = StyleAgentAppointment.query.order_by(
+        StyleAgentAppointment.appointment_date.desc(),
+        StyleAgentAppointment.appointment_time.desc()
+    )
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+    appts = q.all()
+    agents = User.query.filter_by(role='delivery', is_active=True).all()
+    return render_template('admin/appointments.html', appointments=appts,
+                           agents=agents, status_filter=status_filter)
+
+
+@admin_bp.route('/appointments/<int:appt_id>/assign', methods=['POST'])
+@login_required
+@admin_required
+def appointment_assign(appt_id):
+    appt = StyleAgentAppointment.query.get_or_404(appt_id)
+    agent_id = request.form.get('agent_id', type=int)
+    if not agent_id:
+        flash('Select a Style Agent.', 'danger')
+        return redirect(url_for('admin.appointments'))
+    appt.style_agent_id = agent_id
+    appt.status = 'agent_assigned'
+    db.session.commit()
+    flash('Style Agent assigned.', 'success')
+    return redirect(url_for('admin.appointments'))
+
+
+@admin_bp.route('/appointments/<int:appt_id>/confirm', methods=['POST'])
+@login_required
+@admin_required
+def appointment_confirm(appt_id):
+    appt = StyleAgentAppointment.query.get_or_404(appt_id)
+    appt.status = 'confirmed'
+    db.session.commit()
+    try:
+        from app.services import email_service
+        email_service.send_appointment_confirmed(appt)
+    except Exception:
+        pass
+    flash('Appointment confirmed and customer notified.', 'success')
+    return redirect(url_for('admin.appointments'))
+
+
+@admin_bp.route('/appointments/<int:appt_id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def appointment_cancel(appt_id):
+    appt = StyleAgentAppointment.query.get_or_404(appt_id)
+    appt.status = 'cancelled'
+    db.session.commit()
+    flash('Appointment cancelled.', 'warning')
+    return redirect(url_for('admin.appointments'))
+
+
+# ── Style Agent Schedule Config ─────────────────────────────────────────────
+
+@admin_bp.route('/schedule-config')
+@login_required
+@admin_required
+def schedule_config():
+    configs = StyleAgentConfig.query.order_by(StyleAgentConfig.created_at).all()
+    return render_template('admin/schedule_config.html', configs=configs)
+
+
+@admin_bp.route('/schedule-config/save', methods=['POST'])
+@login_required
+@admin_required
+def schedule_config_save():
+    config_id = request.form.get('config_id', type=int)
+    cfg = StyleAgentConfig.query.get(config_id) if config_id else StyleAgentConfig()
+
+    cfg.config_name = request.form.get('config_name', '').strip()
+    cfg.start_hour = int(request.form.get('start_hour') or 10)
+    cfg.end_hour = int(request.form.get('end_hour') or 18)
+    cfg.slot_duration_minutes = int(request.form.get('slot_duration_minutes') or 30)
+    cfg.is_active = 'is_active' in request.form
+
+    if not cfg.id:
+        db.session.add(cfg)
+    db.session.commit()
+    flash('Schedule configuration saved.', 'success')
+    return redirect(url_for('admin.schedule_config'))
+
+
+@admin_bp.route('/schedule-config/<int:cfg_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def schedule_config_delete(cfg_id):
+    cfg = StyleAgentConfig.query.get_or_404(cfg_id)
+    db.session.delete(cfg)
+    db.session.commit()
+    flash('Config deleted.', 'success')
+    return redirect(url_for('admin.schedule_config'))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PHASE 1 — FINANCIAL DASHBOARD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/financial')
+@login_required
+@admin_required
+def financial():
+    from sqlalchemy import func
+    total_revenue = db.session.query(func.sum(PaymentTransaction.amount)).filter_by(
+        status='success').scalar() or 0
+    total_refunds = db.session.query(func.sum(PaymentTransaction.amount)).filter(
+        PaymentTransaction.status.in_(['refunded', 'refund_initiated'])).scalar() or 0
+    pending_payouts = db.session.query(func.sum(PaymentAllocation.amount)).filter_by(
+        payout_status='pending').scalar() or 0
+
+    recent_txns = (PaymentTransaction.query
+                   .order_by(PaymentTransaction.created_at.desc())
+                   .limit(50).all())
+    tailor_earnings = (
+        db.session.query(
+            TailorProfile.shop_name,
+            func.sum(PaymentAllocation.amount).label('total')
+        )
+        .join(PaymentAllocation, PaymentAllocation.recipient_id == TailorProfile.id)
+        .filter(PaymentAllocation.recipient_type == 'tailor',
+                PaymentAllocation.payout_status == 'pending')
+        .group_by(TailorProfile.id)
+        .all()
+    )
+    return render_template('admin/financial.html',
+                           total_revenue=total_revenue,
+                           total_refunds=total_refunds,
+                           pending_payouts=pending_payouts,
+                           recent_txns=recent_txns,
+                           tailor_earnings=tailor_earnings)
+
+
+@admin_bp.route('/financial/payout/<int:alloc_id>', methods=['POST'])
+@login_required
+@admin_required
+def mark_payout(alloc_id):
+    alloc = PaymentAllocation.query.get_or_404(alloc_id)
+    alloc.payout_status = 'processed'
+    alloc.payout_date = datetime.utcnow()
+    db.session.commit()
+    flash('Payout marked as processed.', 'success')
+    return redirect(url_for('admin.financial'))
+
+
+@admin_bp.route('/financial/refund/<int:order_id>', methods=['POST'])
+@login_required
+@admin_required
+def initiate_refund(order_id):
+    order = Order.query.get_or_404(order_id)
+    from app.services import payment_service
+    txn = payment_service.initiate_refund(order)
+    if txn:
+        flash(f'Refund initiated for order #{order.order_number}.', 'success')
+    else:
+        flash('No successful payment found for this order.', 'warning')
+    return redirect(url_for('admin.financial'))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN SETTINGS — System Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def settings():
+    from app.models import AdminConfig
+    config = AdminConfig.get()
+
+    if request.method == 'POST':
+        config.tailor_acceptance_window_hours = request.form.get('tailor_window', 2, type=int)
+        enable_slot = request.form.get('enable_slot_booking')
+        config.enable_style_agent_slot_booking = enable_slot == 'on'
+        auto_confirm = request.form.get('auto_confirm')
+        config.auto_confirm_orders_if_no_response = auto_confirm == 'on'
+        db.session.commit()
+        flash('Settings updated successfully.', 'success')
+        return redirect(url_for('admin.settings'))
+
+    return render_template('admin/settings.html', config=config)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STYLE AGENT ASSIGNMENT — Manual assignment when slot booking disabled
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/orders/<int:order_id>/assign-style-agent', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def assign_style_agent(order_id):
+    order = Order.query.get_or_404(order_id)
+
+    # Guard: style agent assignment only makes sense after tailor has accepted
+    if order.status != 'accepted':
+        flash('Style agent can only be assigned after the tailor has accepted the order.', 'warning')
+        return redirect(url_for('admin.order_detail', order_id=order_id))
+
+    if request.method == 'POST':
+        agent_id = request.form.get('style_agent_id', type=int)
+        agent = User.query.filter_by(id=agent_id, role='delivery').first_or_404()
+
+        # Allow admin to override the slot date/time if needed
+        new_date = request.form.get('visit_date', '').strip()
+        new_time = request.form.get('visit_time', '').strip()
+        if new_date:
+            order.style_agent_appointment_date = new_date
+        if new_time:
+            order.style_agent_appointment_time = new_time
+
+        order.auto_assigned_style_agent_id = agent.id
+        order.admin_assigned_at = datetime.utcnow()
+        order.customer_confirmed_slot = False
+        db.session.commit()
+
+        slot_info = ''
+        if order.style_agent_appointment_date:
+            slot_info = f' for {order.style_agent_appointment_date} @ {order.style_agent_appointment_time}'
+
+        # Notify customer to confirm the assigned slot
+        Notification.create(
+            user_id=order.customer_id,
+            title='Style Agent Assigned',
+            body=f'{agent.name} has been assigned as your Style Agent for order #{order.order_number}{slot_info}. Please confirm this assignment.',
+            type='info',
+            order_id=order.id,
+        )
+        db.session.commit()
+
+        try:
+            from app.services import email_service
+            email_service.send_style_agent_assigned(order, agent)
+        except Exception:
+            pass
+
+        flash(f'Style Agent {agent.name} assigned to order #{order.order_number}.', 'success')
+        return redirect(url_for('admin.order_detail', order_id=order_id))
+
+    # Get all available delivery agents
+    agents = User.query.filter_by(role='delivery', is_active=True).all()
+    return render_template('admin/assign_style_agent.html', order=order, agents=agents)
