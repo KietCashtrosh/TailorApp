@@ -13,6 +13,10 @@ email-validator==2.1.1
 # WSGI server (production)
 gunicorn==22.0.0
 
+# PostgreSQL driver (required when DATABASE_URL is postgresql://)
+# psycopg2-binary = pre-compiled wheel, no C build tools needed on Railway
+psycopg2-binary==2.9.9
+
 # Utilities
 Werkzeug==3.0.3
 python-dotenv==1.0.1
