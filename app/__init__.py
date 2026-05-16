@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify
 from config import config_map, DevelopmentConfig
+from app.extensions import db  # re-export so `from app import db` works in run.py / CLI
 
 
 def create_app(config_class=None):

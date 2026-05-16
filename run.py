@@ -11,6 +11,11 @@ from sqlalchemy import text, inspect
 
 app = create_app()
 
+# Startup banner — visible in Railway/gunicorn logs so you can confirm the app loaded
+print(f"[TailorApp] App created | ENV={os.environ.get('FLASK_ENV', 'development')} "
+      f"| DB={app.config['SQLALCHEMY_DATABASE_URI'][:40]}... "
+      f"| DEBUG={app.config.get('DEBUG', False)}", flush=True)
+
 
 @app.cli.command('init-db')
 def init_db():
