@@ -318,7 +318,7 @@ class Order(db.Model):
     tailor_handover_otp = db.Column(db.String(6), default='')
     tailor_handover_verified = db.Column(db.Boolean, default=False)
     measurements = db.Column(db.Text, default='{}')
-    measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
+    measurement_preference = db.Column(db.String(30), default='delivery_will_measure')
     special_instructions = db.Column(db.Text, default='')
     fabric_description = db.Column(db.Text, default='')
     status = db.Column(db.String(30), default='placed', index=True)
@@ -594,7 +594,7 @@ class CartItem(db.Model):
     quantity = db.Column(db.Integer, default=1)
     fabric_description = db.Column(db.Text, default='')
     special_instructions = db.Column(db.Text, default='')
-    measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
+    measurement_preference = db.Column(db.String(30), default='delivery_will_measure')
     measurements = db.Column(db.Text, default='{}')
     selected_variants = db.Column(db.Text, default='{}')  # JSON {group: chosen_option}
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

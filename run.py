@@ -402,6 +402,24 @@ def migrate_db():
             db.session.add(config)
             print('  Default AdminConfig created.')
 
+        # Widen measurement_preference VARCHAR(20 → 30) — 'delivery_will_measure' is 21 chars,
+        # SQLite silently truncated but PostgreSQL enforces the limit strictly.
+        try:
+            db.session.execute(text(
+                "ALTER TABLE orders ALTER COLUMN measurement_preference TYPE VARCHAR(30)"
+            ))
+            print('  orders.measurement_preference widened to VARCHAR(30).')
+        except Exception:
+            db.session.rollback()  # SQLite doesn't support ALTER COLUMN TYPE — safe to ignore
+
+        try:
+            db.session.execute(text(
+                "ALTER TABLE cart_items ALTER COLUMN measurement_preference TYPE VARCHAR(30)"
+            ))
+            print('  cart_items.measurement_preference widened to VARCHAR(30).')
+        except Exception:
+            db.session.rollback()  # SQLite — safe to ignore
+
         db.session.commit()
         print('Migration complete.')
 
