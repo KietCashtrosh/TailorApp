@@ -11,6 +11,7 @@ from app.models import (TailorProfile, Design, Order, CustomerMeasurement,
                         ProductDesign, TailorProductService,
                         TailorMeasurementTemplate,
                         StyleAgentConfig, StyleAgentAppointment, AdminConfig)
+from app.services.email_service import send_order_placed, send_order_delivered
 
 
 def customer_required(f):
@@ -346,6 +347,15 @@ def place_order():
             else:
                 flash('Coupon code not found.', 'warning')
 
+        # Collect selected design variants from the form (e.g. Neckline, Sleeve Style)
+        design_options = design.get_design_options()
+        selected_variants = {}
+        for group in design_options:
+            key = f"variant_{group['group'].replace(' ', '_')}"
+            val = request.form.get(key, '').strip()
+            if val:
+                selected_variants[group['group']] = val
+
         order = Order(
             order_number=generate_order_number(),
             customer_id=current_user.id,
@@ -362,6 +372,7 @@ def place_order():
             coupon_code=applied_code,
             payment_method=payment_method,
             payment_status='cod_pending' if payment_method == 'cod' else 'unpaid',
+            selected_variants=json.dumps(selected_variants),
         )
         db.session.add(order)
         db.session.flush()
@@ -371,6 +382,7 @@ def place_order():
                f'New order {order.order_number} for {design.name} from {current_user.name}.',
                url_for('tailor.order_detail', order_id=order.id))
         db.session.commit()
+        send_order_placed(order)   # email the customer
         flash(f'Order {order.order_number} placed successfully!', 'success')
         return redirect(url_for('customer.order_detail', order_id=order.id))
 

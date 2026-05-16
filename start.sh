@@ -15,8 +15,11 @@ flask init-db
 echo ">>> [2/3] Applying column migrations..."
 flask migrate-db
 
-echo ">>> [3/3] Seeding product catalogue..."
+echo ">>> [3/4] Seeding product catalogue..."
 flask seed-catalogue
+
+echo ">>> [4/4] Seeding 25 demo tailors + 5 demo customers..."
+python -X utf8 seed_demo_data.py
 
 echo ">>> All done. Starting gunicorn..."
 exec gunicorn run:app \

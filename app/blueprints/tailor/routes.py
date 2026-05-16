@@ -11,6 +11,7 @@ from app.blueprints.tailor import tailor_bp
 from app.extensions import db
 from app.models import (Order, TailorProfile, Design, TailorMeasurementTemplate,
                         Notification, notify, Message, generate_otp)
+from app.services.email_service import send_order_accepted, send_order_ready
 
 
 def allowed_file(filename):
@@ -226,6 +227,7 @@ def update_order_status(order_id):
             order_id=order.id,
             link=url_for('customer.order_detail', order_id=order.id),
         )
+        send_order_accepted(order)   # email the customer
     elif new_status == 'rejected':
         Notification.create(
             user_id=order.customer_id,
@@ -245,6 +247,7 @@ def update_order_status(order_id):
             order_id=order.id,
             link=url_for('customer.order_detail', order_id=order.id),
         )
+        send_order_ready(order)   # email the customer
     else:
         notify(order.customer_id,
                f'Order {order.order_number}: status updated to "{order.status_label()}".',

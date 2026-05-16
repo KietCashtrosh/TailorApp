@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from app.blueprints.auth import auth_bp
 from app.extensions import db
 from app.models import User, TailorProfile, FamilyProfile, PasswordResetToken
+from app.services.email_service import send_password_reset
 
 
 def _redirect_by_role(user):
@@ -150,8 +151,8 @@ def forgot_password():
                 flash('An error occurred. Please try again.', 'danger')
                 return render_template('auth/forgot_password.html', title='Forgot Password')
             reset_url = url_for('auth.reset_password', token=prt.token, _external=True)
-            # In production this would be emailed; for demo we show the link
-            flash(f'Password reset link (demo): <a href="{reset_url}" class="alert-link">Click here to reset</a>', 'info')
+            send_password_reset(user, reset_url)   # send the real email
+            flash('Password reset link sent! Check your email inbox (and spam folder).', 'info')
         else:
             flash('If that email is registered you will receive a reset link.', 'info')
     return render_template('auth/forgot_password.html', title='Forgot Password')

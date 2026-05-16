@@ -15,6 +15,7 @@ from app.models import (User, TailorProfile, Order, DeliveryAssignment, Design,
                         ProductDesign, DesignVariant, DesignImage, TailorProductService,
                         StyleAgentConfig, StyleAgentAppointment, AdminConfig,
                         PaymentTransaction, PaymentAllocation)
+from app.services.email_service import send_account_approved, send_account_rejected
 
 
 def admin_required(f):
@@ -100,6 +101,7 @@ def approve_user(user_id):
     user.is_active = True
     notify(user.id, 'Your registration has been approved. You can now log in.')
     db.session.commit()
+    send_account_approved(user)   # fire-and-forget, won't crash if mail fails
     flash(f'{user.name} ({user.role}) has been approved and can now log in.', 'success')
     return redirect(url_for('admin.approvals'))
 
@@ -113,6 +115,7 @@ def reject_user(user_id):
     user.is_active = False
     notify(user.id, 'Your registration was not approved. Please contact support for more details.')
     db.session.commit()
+    send_account_rejected(user)   # fire-and-forget
     flash(f'{user.name}\'s registration has been rejected.', 'warning')
     return redirect(url_for('admin.approvals'))
 

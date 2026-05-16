@@ -163,6 +163,52 @@ def send_refund_initiated(order, amount):
           order.customer.email, html)
 
 
+# ── Account approval notifications ────────────────────────────────────────────
+
+def send_account_approved(user):
+    role_label = {'tailor': 'Tailor', 'delivery': 'Delivery Agent'}.get(user.role, user.role.title())
+    html = _wrap(f"""
+      <h3>Your Account Has Been Approved ✅</h3>
+      <p>Hi <strong>{user.name}</strong>,</p>
+      <p>Great news! Your <strong>{role_label}</strong> registration on TailorApp has been approved.</p>
+      <p>You can now log in and start using the platform.</p>
+      <p style="text-align:center;margin-top:24px;">
+        <a href="#" style="background:#6f42c1;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">
+          Log In Now
+        </a>
+      </p>
+    """)
+    _send('Your TailorApp Account is Approved!', user.email, html)
+
+
+def send_account_rejected(user):
+    role_label = {'tailor': 'Tailor', 'delivery': 'Delivery Agent'}.get(user.role, user.role.title())
+    html = _wrap(f"""
+      <h3>Registration Update</h3>
+      <p>Hi <strong>{user.name}</strong>,</p>
+      <p>Thank you for applying to join TailorApp as a <strong>{role_label}</strong>.</p>
+      <p>After reviewing your application, we are unable to approve your registration at this time.</p>
+      <p>If you believe this is an error or would like more information, please contact our support team.</p>
+    """)
+    _send('TailorApp Registration Update', user.email, html)
+
+
+def send_password_reset(user, reset_url):
+    html = _wrap(f"""
+      <h3>Reset Your Password 🔑</h3>
+      <p>Hi <strong>{user.name}</strong>,</p>
+      <p>We received a request to reset your TailorApp password.</p>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="{reset_url}" style="background:#6f42c1;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">
+          Reset Password
+        </a>
+      </p>
+      <p style="font-size:13px;color:#666;">This link expires in <strong>1 hour</strong> and can only be used once.</p>
+      <p style="font-size:13px;color:#666;">If you didn't request this, you can safely ignore this email.</p>
+    """)
+    _send('Reset Your TailorApp Password', user.email, html)
+
+
 def send_style_agent_assigned(order, agent):
     """Notify customer when admin manually assigns a style agent to their order."""
     html = _wrap(f"""
