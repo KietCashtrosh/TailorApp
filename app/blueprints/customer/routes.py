@@ -348,6 +348,8 @@ def place_order():
                 flash('Coupon code not found.', 'warning')
 
         # Collect selected design variants from the form (e.g. Neckline, Sleeve Style)
+        # selected_variants lives on OrderItem, not Order — append to special_instructions
+        # so the tailor can see what style was chosen.
         design_options = design.get_design_options()
         selected_variants = {}
         for group in design_options:
@@ -356,6 +358,14 @@ def place_order():
             if val:
                 selected_variants[group['group']] = val
 
+        # Append variant summary to special instructions so tailor sees them
+        variant_summary = ', '.join(f"{g}: {v}" for g, v in selected_variants.items())
+        full_instructions = special_instructions
+        if variant_summary:
+            full_instructions = f"[Style: {variant_summary}]" + (
+                f"\n{special_instructions}" if special_instructions else ''
+            )
+
         order = Order(
             order_number=generate_order_number(),
             customer_id=current_user.id,
@@ -363,7 +373,7 @@ def place_order():
             design_id=design.id,
             measurements=json.dumps(measurements),
             measurement_preference=measurement_preference,
-            special_instructions=special_instructions,
+            special_instructions=full_instructions,
             fabric_description=fabric_description,
             pickup_address=pickup_address,
             delivery_address=delivery_address,
@@ -372,7 +382,6 @@ def place_order():
             coupon_code=applied_code,
             payment_method=payment_method,
             payment_status='cod_pending' if payment_method == 'cod' else 'unpaid',
-            selected_variants=json.dumps(selected_variants),
         )
         db.session.add(order)
         db.session.flush()
@@ -832,6 +841,10 @@ def cart_checkout():
     # Clear the cart
     CartItem.query.filter_by(customer_id=current_user.id).delete()
     db.session.commit()
+
+    # Email the customer for every order placed
+    for order in placed_orders:
+        send_order_placed(order)
 
     flash(f'{len(placed_orders)} order(s) placed successfully!', 'success')
     return redirect(url_for('customer.my_orders'))
