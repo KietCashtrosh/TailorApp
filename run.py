@@ -1,4 +1,5 @@
 import json
+import os
 from app import create_app, db
 from app.models import (
     User, TailorProfile, Design,
@@ -754,4 +755,6 @@ def seed_catalogue():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Never hard-code debug=True. Set FLASK_DEBUG=1 in your .env for local dev.
+    debug = os.environ.get('FLASK_DEBUG', '0').strip() == '1'
+    app.run(debug=debug)

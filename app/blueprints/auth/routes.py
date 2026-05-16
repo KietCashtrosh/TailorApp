@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, session
+from flask import render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.blueprints.auth import auth_bp
 from app.extensions import db
@@ -88,8 +88,9 @@ def register():
             flash('Passwords do not match.', 'danger')
             return render_template('auth/register.html', title='Register')
 
-        if len(password) < 6:
-            flash('Password must be at least 6 characters.', 'danger')
+        min_len = current_app.config.get('MIN_PASSWORD_LENGTH', 10)
+        if len(password) < min_len:
+            flash(f'Password must be at least {min_len} characters.', 'danger')
             return render_template('auth/register.html', title='Register')
 
         if User.query.filter_by(email=email).first():
@@ -115,7 +116,13 @@ def register():
             )
             db.session.add(profile)
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Registration DB commit failed for %s', email)
+            flash('An error occurred during registration. Please try again.', 'danger')
+            return render_template('auth/register.html', title='Register')
 
         if role in ('tailor', 'delivery'):
             flash('Account created! Your application is under review — an admin will approve it shortly.', 'info')
@@ -134,8 +141,14 @@ def forgot_password():
         email = request.form.get('email', '').strip().lower()
         user = User.query.filter_by(email=email).first()
         if user:
-            prt = PasswordResetToken.create_for_user(user)
-            db.session.commit()
+            try:
+                prt = PasswordResetToken.create_for_user(user)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                current_app.logger.exception('Failed to create reset token for %s', email)
+                flash('An error occurred. Please try again.', 'danger')
+                return render_template('auth/forgot_password.html', title='Forgot Password')
             reset_url = url_for('auth.reset_password', token=prt.token, _external=True)
             # In production this would be emailed; for demo we show the link
             flash(f'Password reset link (demo): <a href="{reset_url}" class="alert-link">Click here to reset</a>', 'info')
@@ -155,21 +168,28 @@ def reset_password(token):
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm = request.form.get('confirm_password', '')
-        if len(password) < 6:
-            flash('Password must be at least 6 characters.', 'danger')
+        min_len = current_app.config.get('MIN_PASSWORD_LENGTH', 10)
+        if len(password) < min_len:
+            flash(f'Password must be at least {min_len} characters.', 'danger')
             return render_template('auth/reset_password.html', token=token)
         if password != confirm:
             flash('Passwords do not match.', 'danger')
             return render_template('auth/reset_password.html', token=token)
         prt.user.set_password(password)
         prt.used = True
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Password reset DB commit failed for token %s', token)
+            flash('An error occurred. Please try the reset link again.', 'danger')
+            return render_template('auth/reset_password.html', token=token)
         flash('Password reset successfully! Please log in.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('auth/reset_password.html', token=token)
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     session.pop('active_profile_id', None)

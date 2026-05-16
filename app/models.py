@@ -15,11 +15,11 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(15), nullable=False)
-    password_hash = db.Column(db.String(256))
-    role = db.Column(db.String(20), nullable=False)  # admin | tailor | delivery | customer
+    password_hash = db.Column(db.Text)  # Text: hashes can exceed 256 chars on high iteration counts
+    role = db.Column(db.String(20), nullable=False, index=True)  # admin | tailor | delivery | customer
     is_active = db.Column(db.Boolean, default=True)
     # approved | pending | rejected  (customers/admin auto-approved; tailors/delivery start pending)
-    approval_status = db.Column(db.String(20), default='approved')
+    approval_status = db.Column(db.String(20), default='approved', index=True)
     default_pickup_address = db.Column(db.Text, default='')
     default_delivery_address = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -292,12 +292,15 @@ STATUS_BADGE = {
 
 
 def generate_order_number():
-    suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    # Use secrets for cryptographically random suffix — order numbers should be unguessable
+    alphabet = string.ascii_uppercase + string.digits
+    suffix = ''.join(secrets.choice(alphabet) for _ in range(6))
     return f'ORD{datetime.utcnow().strftime("%y%m%d")}{suffix}'
 
 
 def generate_otp():
-    return str(random.randint(100000, 999999))
+    # 6-digit OTP — cryptographically random
+    return str(secrets.randbelow(900000) + 100000)
 
 
 class Order(db.Model):
@@ -306,8 +309,8 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False,
                              default=generate_order_number)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False, index=True)
     design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=True)
     family_profile_id = db.Column(db.Integer, db.ForeignKey('family_profiles.id'), nullable=True)
     tailor_receipt_otp = db.Column(db.String(6), default='')
@@ -318,7 +321,7 @@ class Order(db.Model):
     measurement_preference = db.Column(db.String(20), default='delivery_will_measure')
     special_instructions = db.Column(db.Text, default='')
     fabric_description = db.Column(db.Text, default='')
-    status = db.Column(db.String(30), default='placed')
+    status = db.Column(db.String(30), default='placed', index=True)
     pickup_address = db.Column(db.Text, nullable=False)
     delivery_address = db.Column(db.Text, nullable=False)
     estimated_price = db.Column(db.Float)
@@ -331,8 +334,15 @@ class Order(db.Model):
     accepted_at = db.Column(db.DateTime)
     admin_note = db.Column(db.Text, default='')
     work_images = db.Column(db.Text, default='[]')       # JSON list of filenames (tailor work-proof photos)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        # Composite index: tailor dashboard filters by tailor + status constantly
+        db.Index('ix_orders_tailor_status', 'tailor_id', 'status'),
+        # Composite index: customer order list filters by customer + status
+        db.Index('ix_orders_customer_status', 'customer_id', 'status'),
+    )
 
     design = db.relationship('Design')
     family_profile = db.relationship('FamilyProfile', foreign_keys=[family_profile_id])
@@ -447,7 +457,7 @@ class OrderStatusHistory(db.Model):
     __tablename__ = 'order_status_history'
 
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False, index=True)
     status = db.Column(db.String(30), nullable=False)
     note = db.Column(db.Text, default='')
     changed_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -463,12 +473,12 @@ class DeliveryAssignment(db.Model):
     __tablename__ = 'delivery_assignments'
 
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
-    delivery_agent_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False, index=True)
+    delivery_agent_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     assignment_type = db.Column(db.String(20), nullable=False)
     pickup_address = db.Column(db.Text)
     dropoff_address = db.Column(db.Text)
-    status = db.Column(db.String(20), default='assigned')
+    status = db.Column(db.String(20), default='assigned', index=True)
     # assigned | otp_pending | picked_up | delivered
     pickup_otp = db.Column(db.String(6), default='')
     delivery_otp = db.Column(db.String(6), default='')
@@ -550,7 +560,7 @@ class CustomerMeasurement(db.Model):
     __tablename__ = 'customer_measurements'
 
     id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
     measurements = db.Column(db.Text, default='{}')
     taken_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
@@ -578,7 +588,7 @@ class CartItem(db.Model):
     __tablename__ = 'cart_items'
 
     id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     tailor_id = db.Column(db.Integer, db.ForeignKey('tailor_profiles.id'), nullable=False)
     design_id = db.Column(db.Integer, db.ForeignKey('designs.id'), nullable=False)
     quantity = db.Column(db.Integer, default=1)
@@ -613,7 +623,7 @@ class Notification(db.Model):
     __tablename__ = 'notifications'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     message = db.Column(db.Text, nullable=False)
     link = db.Column(db.String(300), default='')
     # Extended fields for richer notifications
@@ -621,7 +631,7 @@ class Notification(db.Model):
     body = db.Column(db.Text, default='')
     type = db.Column(db.String(20), default='info')   # info | success | warning | danger
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)
-    is_read = db.Column(db.Boolean, default=False)
+    is_read = db.Column(db.Boolean, default=False, index=True)  # filtered constantly for unread badge
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='notifications')
